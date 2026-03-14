@@ -17,5 +17,15 @@ def bob(accounts):
 
 
 @pytest.fixture(scope="session")
+def charlie(accounts):
+    return accounts[3]
+
+
+@pytest.fixture(scope="session")
 def ticket_nft(project, owner):
     return owner.deploy(project.TicketNFT, "HackTicket", "HTKT")
+
+
+@pytest.fixture(scope="session")
+def marketplace(project, owner, ticket_nft):
+    return owner.deploy(project.TicketMarketplace, ticket_nft.address)

@@ -1,5 +1,6 @@
 """
-Deploy TicketNFT to the connected network and save address + ABI.
+Deploy TicketNFT and TicketMarketplace to the connected network and save
+address + ABI for each.
 
 Usage (local test network):
     ape run deploy
@@ -37,6 +38,10 @@ def main():
     nft = deployer.deploy(project.TicketNFT, TOKEN_NAME, TOKEN_SYMBOL)
     print(f"TicketNFT deployed at: {nft.address}")
 
+    print(f"Deploying TicketMarketplace (nft={nft.address}) from {deployer.address} ...")
+    marketplace = deployer.deploy(project.TicketMarketplace, nft.address)
+    print(f"TicketMarketplace deployed at: {marketplace.address}")
+
     initial_mint = int(os.environ.get("INITIAL_MINT", "0"))
     if initial_mint > 0:
         print(f"Minting {initial_mint} initial tickets to deployer ...")
@@ -45,18 +50,19 @@ def main():
         nft.mintBatch(recipients, token_ids, sender=deployer)
         print(f"Minted token IDs 1..{initial_mint} to {deployer.address}")
 
-    _save_deployment(nft)
+    _save_deployment(nft, "ticket_nft.json", "TicketNFT")
+    _save_deployment(marketplace, "marketplace.json", "TicketMarketplace")
 
 
-def _save_deployment(contract):
+def _save_deployment(contract, filename, contract_name):
     out_dir = Path(__file__).resolve().parent.parent / "deployments"
     out_dir.mkdir(exist_ok=True)
-    out_file = out_dir / "ticket_nft.json"
+    out_file = out_dir / filename
 
     abi = [item.dict() for item in contract.contract_type.abi]
 
     payload = {
-        "contract_name": "TicketNFT",
+        "contract_name": contract_name,
         "address": contract.address,
         "abi": abi,
     }
