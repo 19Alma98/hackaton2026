@@ -7,13 +7,17 @@ Questa cartella contiene tutto il necessario per avviare una rete privata Ethere
 | Percorso | Descrizione |
 |----------|-------------|
 | `genesis.json` | File genesis Clique condiviso da tutti i nodi |
-| `static-nodes.json` | Enode URL dei 5 nodi per la peer discovery |
-| `docker-compose.yml` | 5 servizi Geth (nodo1…nodo5) su rete Docker |
-| `entrypoint.sh` | Script di avvio: init genesis + copia nodekey/static-nodes |
+| `static-nodes.json` | Enode URL dei nodi per la peer discovery |
+| `docker-compose.yml` | Tutti i servizi Geth su un singolo host (sviluppo) |
+| `docker-compose.node.yml` | Singolo nodo per deployment multi-PC in LAN |
+| `entrypoint.sh` | Script di avvio: init genesis + copia nodekey |
 | `password.txt` | Password per sbloccare gli account dei sealer |
 | `.env` | Variabili di configurazione (chainId, period) |
 | `nodes/` | Chiavi dei nodi (gitignored, generato dallo script) |
-| `scripts/generate_keys.py` | Script Python per generazione deterministica delle chiavi |
+| `scripts/generate_keys.py` | Generazione deterministica di chiavi, genesis e config |
+| `scripts/check_peers.py` | Verifica connettività tra i nodi |
+| **[RUNBOOK.md](RUNBOOK.md)** | **Guida operativa passo-passo per ogni PC** |
+| [LAN_SETUP.md](LAN_SETUP.md) | Guida tecnica per deployment multi-PC |
 
 ## Prerequisiti
 

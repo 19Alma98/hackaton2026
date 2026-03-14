@@ -1,6 +1,9 @@
-# Deployment su 5 PC in LAN
+# Deployment su PC separati in LAN
 
-Guida passo-passo per avviare la rete Clique a 5 nodi su 5 macchine separate nella stessa LAN.
+Guida tecnica per avviare la rete Clique su macchine separate nella stessa LAN.
+
+> **Cerchi istruzioni operative copia-incolla?** Vedi [RUNBOOK.md](RUNBOOK.md)
+> per la guida passo-passo per ogni operatore.
 
 ## Prerequisiti (ogni PC)
 
