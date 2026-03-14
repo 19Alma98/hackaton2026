@@ -41,12 +41,24 @@ Variabili d'ambiente (o file `backend-api/.env`):
 | `CHAIN_ID` | `1337` | Chain ID della rete privata |
 | `NFT_CONTRACT_ADDRESS` | *(vuoto)* | Indirizzo TicketNFT (se vuoto, letto da deployment artifact) |
 | `MARKETPLACE_CONTRACT_ADDRESS` | *(vuoto)* | Indirizzo TicketMarketplace (se vuoto, letto da deployment artifact) |
-| `DEPLOYMENTS_DIR` | `../contracts/deployments` | Cartella contenente `ticket_nft.json` e `marketplace.json` |
+| `DEPLOYMENTS_DIR` | *(repo)*`/contracts/deployments` | Cartella con `ticket_nft.json` e `marketplace.json` |
 | `CORS_ORIGINS` | `*` | Origini CORS consentite (separate da virgola) |
 
 ### Zero-config dopo il deploy
 
 Se lasci vuoti `NFT_CONTRACT_ADDRESS` e `MARKETPLACE_CONTRACT_ADDRESS`, l'API legge automaticamente gli indirizzi e le ABI dai file in `DEPLOYMENTS_DIR` generati da `ape run deploy`.
+
+### Tutti devono vedere gli stessi indirizzi (nft_contract_address / marketplace)
+
+Se un utente vede un `nft_contract_address` diverso da un altro:
+
+1. **Backend diverso** – Ogni istanza dell’API usa il proprio `.env` e la propria cartella `DEPLOYMENTS_DIR`. Se su una macchina hai impostato `NFT_CONTRACT_ADDRESS` (o un `ticket_nft.json` diverso), quella risposta sarà diversa.
+2. **Frontend con env a build-time** – Se il frontend usa `VITE_NFT_CONTRACT` / `VITE_MARKETPLACE_CONTRACT` nel build, l’indirizzo è fissato in fase di build: due build con env diversi → due indirizzi diversi per gli utenti.
+
+**Consiglio:** usa **un’unica fonte di verità** per tutta l’app:
+
+- Imposta **sul backend** (nella stessa istanza che usano tutti) `NFT_CONTRACT_ADDRESS` e `MARKETPLACE_CONTRACT_ADDRESS` nel `.env` con gli indirizzi del deploy condiviso.
+- Fai in modo che il **frontend** prenda sempre gli indirizzi da `GET /api/config` (e non da `VITE_*` a build-time), così tutti gli utenti ricevono gli stessi indirizzi dall’API.
 
 ---
 

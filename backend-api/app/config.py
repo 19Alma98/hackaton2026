@@ -4,7 +4,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Default deployments dir: repo/contracts/deployments (not CWD-dependent)
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_DEPLOYMENTS_DIR = str(_REPO_ROOT / "contracts" / "deployments")
 
 
 class Settings(BaseSettings):
@@ -18,7 +23,10 @@ class Settings(BaseSettings):
     chain_id: int = 1337
     nft_contract_address: str = ""
     marketplace_contract_address: str = ""
-    deployments_dir: str = "../contracts/deployments"
+    deployments_dir: str = Field(
+        default=_DEFAULT_DEPLOYMENTS_DIR,
+        description="Path to deployment JSONs (address + ABI)",
+    )
     contracts_dir: str = "../contracts"
     wallets_dir: str = "../blockchain/wallets"
     deployer_private_key: str = ""
