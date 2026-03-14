@@ -5,8 +5,11 @@ address + ABI for each.
 Usage (local test network):
     ape run deploy
 
-Usage (private Geth network):
+Usage (private Geth network on localhost):
     ape run deploy --network ethereum:local:node
+
+Usage (private Geth network on a remote LAN node):
+    RPC_URL=http://192.168.2.208:8545 ape run deploy --network ethereum:local:node
 
 Set DEPLOYER_ALIAS to use a named account (imported via `ape accounts import`):
     DEPLOYER_ALIAS=my-deployer ape run deploy --network ethereum:local:node
@@ -19,14 +22,51 @@ import json
 import os
 from pathlib import Path
 
-from ape import accounts, project
+from ape import accounts, chain, project
 
 
 TOKEN_NAME = "Hacka"
 TOKEN_SYMBOL = "HAK"
+EXPECTED_CHAIN_ID = 1337
+
+
+def _apply_rpc_override():
+    """If RPC_URL env var is set, point the current provider to that URI."""
+    rpc_url = os.environ.get("RPC_URL")
+    if not rpc_url:
+        return
+    provider = chain.provider
+    if hasattr(provider, "uri"):
+        provider.uri = rpc_url
+        provider.disconnect()
+        provider.connect()
+        print(f"RPC_URL override → {rpc_url}")
+    else:
+        print(
+            f"WARNING: RPC_URL={rpc_url} is set but the current provider "
+            f"({type(provider).__name__}) does not support URI override. "
+            "Ensure you are using --network ethereum:local:node."
+        )
+
+
+def _print_connection_info():
+    uri = getattr(chain.provider, "uri", None)
+    print(f"Network : {chain.provider.network.name} (provider: {chain.provider.name})")
+    if uri:
+        print(f"RPC URI : {uri}")
+    print(f"Chain ID: {chain.chain_id}")
+    if chain.chain_id != EXPECTED_CHAIN_ID:
+        raise SystemExit(
+            f"ERROR: chain_id mismatch — expected {EXPECTED_CHAIN_ID} "
+            f"(from genesis), got {chain.chain_id}. "
+            "Check ape-config.yaml or RPC_URL."
+        )
 
 
 def main():
+    _apply_rpc_override()
+    _print_connection_info()
+
     deployer_alias = os.environ.get("DEPLOYER_ALIAS")
     if deployer_alias:
         deployer = accounts.load(deployer_alias)
