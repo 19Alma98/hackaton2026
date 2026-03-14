@@ -10,6 +10,8 @@ dependencies = [
     "web3",
     "pydantic-settings",
     "python-dotenv",
+    "pycryptodome",
+    "py-solc-x",
 ]
 
 [project.optional-dependencies]

@@ -62,3 +62,37 @@ class HealthResponse(BaseModel):
     block_number: int | None = None
     rpc_url: str
     chain_id: int
+
+
+class DeployRequest(BaseModel):
+    initial_mint: int = 0
+    deployer_private_key: str = ""
+    token_name: str = "Hacka"
+    token_symbol: str = "HAK"
+
+
+class DeployResponse(BaseModel):
+    nft_address: str
+    marketplace_address: str
+    deployer: str
+    initial_mint: int
+    message: str
+
+
+class TokenHolderInfo(BaseModel):
+    address: str
+    balance: int
+    token_ids: list[int]
+
+
+class MintRequest(BaseModel):
+    recipient: str
+    count: int = 1
+    deployer_private_key: str = ""
+
+
+class MintResponse(BaseModel):
+    recipient: str
+    minted_token_ids: list[int]
+    transaction_hash: str
+    message: str

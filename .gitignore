@@ -1,2 +1,10 @@
 
 *.pyc
+
+*.spec
+
+*.sol
+
+*.hbs
+
+contracts/lib/

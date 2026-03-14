@@ -19,7 +19,9 @@ class Settings(BaseSettings):
     nft_contract_address: str = ""
     marketplace_contract_address: str = ""
     deployments_dir: str = "../contracts/deployments"
+    contracts_dir: str = "../contracts"
     wallets_dir: str = "../blockchain/wallets"
+    deployer_private_key: str = ""
     cors_origins: str = "*"
 
     def get_cors_origins(self) -> list[str]:
