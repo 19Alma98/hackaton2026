@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Generate deterministic node keys, keystores, genesis.json,
-config.toml and static-nodes.json for a 5-node Geth Clique
-PoA network.
+config.toml and static-nodes.json for a Geth Clique PoA network.
 
 Usage (single host / Docker):
     uv run python blockchain/scripts/generate_keys.py
 
-Usage (LAN – 5 separate PCs):
+Usage (LAN – separate PCs):
     uv run python blockchain/scripts/generate_keys.py \
-        --hosts "192.168.1.10,192.168.1.11,192.168.1.12,192.168.1.13,192.168.1.14"
+        --hosts "192.168.1.10,192.168.1.11,192.168.1.12"
 
 All outputs are written under blockchain/.
+
+To create additional wallets (e.g. the ente/organization wallet)
+without regenerating node keys, use create_wallet.py instead.
 """
 
 from __future__ import annotations
@@ -109,7 +111,8 @@ def build_genesis(
         "gasLimit": GAS_LIMIT,
         "extradata": build_extradata([a["address"] for a in accounts]),
         "alloc": {
-            a["address"].lower(): {"balance": PREFUND_WEI} for a in accounts
+            a["address"].lower(): {"balance": PREFUND_WEI}
+            for a in accounts
         },
     }
     return genesis
@@ -145,7 +148,10 @@ def build_config_toml(enodes: list[str]) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "--mnemonic",
         default=DEFAULT_MNEMONIC,
@@ -160,9 +166,9 @@ def main() -> None:
         "--hosts",
         default=None,
         help=(
-            "Comma-separated list of LAN IPs/hostnames for the 5 nodes "
+            "Comma-separated list of LAN IPs/hostnames for the nodes "
             "(e.g. '192.168.1.10,192.168.1.11,...').  When omitted, Docker "
-            "service names (nodo1-nodo5) are used."
+            "service names (nodo1..nodoN) are used."
         ),
     )
     args = parser.parse_args()
@@ -185,18 +191,20 @@ def main() -> None:
         print(f"Hosts    : Docker service names ({', '.join(NODE_NAMES)})")
     print()
 
-    accounts = derive_accounts(args.mnemonic, NUM_NODES)
+    node_accounts = derive_accounts(args.mnemonic, NUM_NODES)
 
     # -- Node directories (keystores + nodekeys) --
-    write_node_dirs(accounts, args.password)
+    write_node_dirs(node_accounts, args.password)
 
     # -- genesis.json --
-    genesis = build_genesis(accounts, args.chain_id, args.period)
+    genesis = build_genesis(
+        node_accounts, args.chain_id, args.period,
+    )
     genesis_path = PROJECT_ROOT / "genesis.json"
     genesis_path.write_text(json.dumps(genesis, indent=2) + "\n")
 
     # -- static-nodes.json (kept for reference) --
-    static_nodes = build_static_nodes(accounts, hosts)
+    static_nodes = build_static_nodes(node_accounts, hosts)
     static_path = PROJECT_ROOT / "static-nodes.json"
     static_path.write_text(json.dumps(static_nodes, indent=2) + "\n")
 
@@ -212,7 +220,7 @@ def main() -> None:
     # -- summary --
     targets = hosts if hosts else NODE_NAMES
     print("=== Generated node keys ===")
-    for acct in accounts:
+    for acct in node_accounts:
         pubhex = acct["public_key"]
         if pubhex.startswith("0x"):
             pubhex = pubhex[2:]
@@ -222,6 +230,7 @@ def main() -> None:
             f"  Node {node_num}: {acct['address']}"
             f"  enode://{pubhex[:16]}...@{host}:30303"
         )
+
     print()
     print(f"genesis.json       -> {genesis_path}")
     print(f"config.toml        -> {toml_path}")
@@ -229,7 +238,9 @@ def main() -> None:
     print(f"password.txt       -> {pw_path}")
     print(f"Node dirs          -> {PROJECT_ROOT / 'nodes/'}")
     print()
-    print("Next: cd blockchain && docker compose up -d")
+    print("Next steps:")
+    print("  1. cd blockchain && docker compose up -d")
+    print("  2. Create wallets with create_wallet.py")
 
 
 if __name__ == "__main__":

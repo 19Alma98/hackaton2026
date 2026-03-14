@@ -11,7 +11,12 @@ Usage (private Geth network – provide account aliases):
     NODE1_ALIAS=node1 NODE2_ALIAS=node2 DEPLOYER_ALIAS=deployer \
         uv run ape run marketplace_demo --network ethereum:local:node
 
+Usage (remote LAN node):
+    RPC_URL=http://192.168.2.208:8545 NODE1_ALIAS=node1 NODE2_ALIAS=node2 \
+        DEPLOYER_ALIAS=deployer uv run ape run marketplace_demo --network ethereum:local:node
+
 Environment variables:
+    RPC_URL         Override the Geth RPC endpoint (for LAN deployment)
     NODE1_ALIAS     Ape account alias for the ticket holder / seller
     NODE2_ALIAS     Ape account alias for the buyer
     DEPLOYER_ALIAS  Ape account alias for the contract owner (minter)
@@ -23,7 +28,7 @@ import json
 import os
 from pathlib import Path
 
-from ape import accounts, Contract, project
+from ape import accounts, chain, Contract, project
 
 
 DEPLOYMENTS_DIR = Path(__file__).resolve().parent.parent / "deployments"
@@ -88,8 +93,33 @@ def _load_or_deploy(deployer):
     return _deploy_contracts(deployer)
 
 
+def _apply_rpc_override():
+    """If RPC_URL env var is set, point the current provider to that URI."""
+    rpc_url = os.environ.get("RPC_URL")
+    if not rpc_url:
+        return
+    provider = chain.provider
+    if hasattr(provider, "uri"):
+        provider.uri = rpc_url
+        provider.disconnect()
+        provider.connect()
+        print(f"  RPC_URL override → {rpc_url}")
+    else:
+        print(
+            f"  WARNING: RPC_URL={rpc_url} is set but the current provider "
+            f"({type(provider).__name__}) does not support URI override. "
+            "Ensure you are using --network ethereum:local:node."
+        )
+
+
 def main():
     print("\n=== Marketplace Demo ===\n")
+
+    _apply_rpc_override()
+    uri = getattr(chain.provider, "uri", None)
+    print(f"  Network : {chain.provider.network.name} (chain_id={chain.chain_id})")
+    if uri:
+        print(f"  RPC URI : {uri}")
 
     deployer = _load_account("DEPLOYER_ALIAS", 0)
     node1 = _load_account("NODE1_ALIAS", 1)
