@@ -62,3 +62,83 @@ class HealthResponse(BaseModel):
     block_number: int | None = None
     rpc_url: str
     chain_id: int
+
+
+class TxResult(BaseModel):
+    tx_hash: str
+    status: str
+    block_number: int | None = None
+    transaction_index: int | None = None
+    gas_used: int | None = None
+    from_address: str | None = None
+    to_address: str | None = None
+    value_wei: str | None = None
+    error: str | None = None
+
+
+class EthTransferRequest(BaseModel):
+    from_address: str
+    to_address: str
+    amount_wei: str
+    wait_for_receipt: bool = True
+
+
+class NftTransferRequest(BaseModel):
+    from_address: str
+    to_address: str
+    token_id: int
+    wait_for_receipt: bool = True
+
+
+class NftApproveRequest(BaseModel):
+    owner_address: str
+    approved_address: str
+    token_id: int
+    wait_for_receipt: bool = True
+
+
+class MarketplaceListRequest(BaseModel):
+    seller_address: str
+    token_id: int
+    price_wei: str
+    wait_for_receipt: bool = True
+
+
+class MarketplaceCancelRequest(BaseModel):
+    seller_address: str
+    token_id: int
+    wait_for_receipt: bool = True
+
+
+class MarketplaceBuyRequest(BaseModel):
+    buyer_address: str
+    token_id: int
+    value_wei: str
+    wait_for_receipt: bool = True
+
+
+class MarketplaceOfferRequest(BaseModel):
+    buyer_address: str
+    token_id: int
+    amount_wei: str
+    wait_for_receipt: bool = True
+
+
+class MarketplaceOfferDecisionRequest(BaseModel):
+    seller_address: str
+    buyer_address: str
+    token_id: int
+    wait_for_receipt: bool = True
+
+
+class MarketplaceWithdrawOfferRequest(BaseModel):
+    buyer_address: str
+    token_id: int
+    wait_for_receipt: bool = True
+
+
+class OfferInfo(BaseModel):
+    token_id: int
+    buyer: str
+    amount_wei: str
+    active: bool

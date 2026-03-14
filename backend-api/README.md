@@ -246,6 +246,139 @@ Valori possibili per `status`: `"ok"` | `"rpc_unreachable"`.
 
 ---
 
+### Transfers (write)
+
+#### `GET /api/transfers/tx/{tx_hash}`
+
+Stato transazione on-chain (pending/success/failed/not_found).
+
+#### `POST /api/transfers/eth`
+
+Trasferisce ETH da un address a un altro (firma custodial lato backend).
+
+```json
+{
+  "from_address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "to_address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+  "amount_wei": "10000000000000000",
+  "wait_for_receipt": true
+}
+```
+
+#### `POST /api/transfers/nft`
+
+Trasferisce un token ERC721 (`transferFrom`) tra due wallet.
+
+#### `POST /api/transfers/nft/approve`
+
+Approva un address (es. marketplace) a gestire un token.
+
+---
+
+### Marketplace (write)
+
+#### `GET /api/marketplace/offers/{token_id}/{buyer_address}`
+
+Ritorna stato offerta specifica buyer/token.
+
+#### `POST /api/marketplace/list`
+Lista un token in vendita (`listTicket`).
+
+#### `POST /api/marketplace/cancel`
+Annulla listing (`cancelListing`).
+
+#### `POST /api/marketplace/buy`
+Compra un token listato (`buyTicket`).
+
+#### `POST /api/marketplace/offer`
+Crea un'offerta con escrow ETH (`makeOffer`).
+
+#### `POST /api/marketplace/offer/accept`
+Accetta un'offerta (`acceptOffer`).
+
+#### `POST /api/marketplace/offer/reject`
+Rifiuta un'offerta (`rejectOffer`).
+
+#### `POST /api/marketplace/offer/withdraw`
+Ritira la propria offerta (`withdrawOffer`).
+
+---
+
+## Config custodial signer
+
+Aggiungi in `backend-api/.env`:
+
+```env
+DEFAULT_SIGNER_PRIVATE_KEY=
+CUSTODIAL_KEYS_JSON={"0x70997970c51812dc3a010c7d01b50e0d17dc79c8":"0x<private_key_hex>"}
+RECEIPT_TIMEOUT_SECONDS=30
+RECEIPT_POLL_INTERVAL_SECONDS=1.0
+```
+
+Note:
+- `CUSTODIAL_KEYS_JSON` mappa `from_address -> private key`.
+- Se la mappa non contiene un address, viene usata `DEFAULT_SIGNER_PRIVATE_KEY`.
+- Il backend valida che la chiave firmi davvero l'address indicato.
+
+---
+
+## Flusso test rapido (comandi)
+
+1) Avvio rete privata:
+
+```bash
+cd blockchain
+docker-compose up -d
+```
+
+2) Deploy contratti:
+
+```bash
+cd contracts
+uv run ape run deploy --network ethereum:local:node
+```
+
+3) Avvio API:
+
+```bash
+cd backend-api
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+4) Transfer ETH:
+
+```bash
+curl -X POST http://localhost:8000/api/transfers/eth \
+  -H "Content-Type: application/json" \
+  -d '{"from_address":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","to_address":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","amount_wei":"10000000000000000","wait_for_receipt":true}'
+```
+
+5) Approve + list + buy:
+
+```bash
+curl -X POST http://localhost:8000/api/transfers/nft/approve \
+  -H "Content-Type: application/json" \
+  -d '{"owner_address":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","approved_address":"<MARKETPLACE_ADDRESS>","token_id":9001,"wait_for_receipt":true}'
+
+curl -X POST http://localhost:8000/api/marketplace/list \
+  -H "Content-Type: application/json" \
+  -d '{"seller_address":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","token_id":9001,"price_wei":"1000000000000000000","wait_for_receipt":true}'
+
+curl -X POST http://localhost:8000/api/marketplace/buy \
+  -H "Content-Type: application/json" \
+  -d '{"buyer_address":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","token_id":9001,"value_wei":"1000000000000000000","wait_for_receipt":true}'
+```
+
+6) Verifica tx e ownership:
+
+```bash
+curl http://localhost:8000/api/transfers/tx/<TX_HASH>
+curl http://localhost:8000/api/tickets/user/0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+curl "http://localhost:8000/api/events/sold?from_block=0"
+```
+
+---
+
 ## Struttura del progetto
 
 ```
@@ -262,6 +395,8 @@ backend-api/
       blocks.py          # GET /api/blocks/latest
       events.py          # GET /api/events/listed, /api/events/sold
       tickets.py         # GET /api/tickets/user/{address}, /api/tickets/for-sale
+      transfers.py       # POST /api/transfers/*
+      marketplace_write.py # POST /api/marketplace/*
       wallets.py         # GET /api/wallets
       app_config.py      # GET /api/config, /api/health
   .env.example

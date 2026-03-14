@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.contracts import get_marketplace_contract, get_nft_contract
-from app.routers import app_config, blocks, events, tickets, wallets
+from app.routers import app_config, blocks, events, marketplace_write, tickets, transfers, wallets
 from app.web3_provider import check_connection
 
 
@@ -52,3 +52,5 @@ app.include_router(events.router)
 app.include_router(tickets.router)
 app.include_router(wallets.router)
 app.include_router(app_config.router)
+app.include_router(transfers.router)
+app.include_router(marketplace_write.router)
