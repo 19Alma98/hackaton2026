@@ -222,3 +222,271 @@ class TestGetListing:
         assert seller == "0x0000000000000000000000000000000000000000"
         assert price == 0
         assert active is False
+
+
+# ── makeOffer ────────────────────────────────────────────────────────
+
+class TestMakeOffer:
+    def test_buyer_can_make_offer(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 4001
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        receipt = marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        amount, active = marketplace.getOffer(token_id, bob)
+        assert amount == PRICE
+        assert active is True
+        assert receipt.status == 1
+
+    def test_make_offer_emits_event(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 4002
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        receipt = marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        events = list(receipt.decode_logs(marketplace.OfferMade))
+        assert len(events) == 1
+        args = events[0].event_arguments
+        assert args["buyer"] == bob.address
+        assert args["tokenId"] == token_id
+        assert args["amount"] == PRICE
+
+    def test_offer_must_be_positive(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 4003
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        with ape.reverts("offer must be > 0"):
+            marketplace.makeOffer(token_id, sender=bob, value=0)
+
+    def test_duplicate_offer_reverts(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 4004
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+        with ape.reverts("offer already active"):
+            marketplace.makeOffer(token_id, sender=bob, value=PRICE * 2)
+
+    def test_multiple_buyers_can_offer(self, ticket_nft, marketplace, owner, alice, bob, charlie):
+        token_id = 4005
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+        marketplace.makeOffer(token_id, sender=charlie, value=PRICE * 2)
+
+        amt_bob, active_bob = marketplace.getOffer(token_id, bob)
+        amt_charlie, active_charlie = marketplace.getOffer(token_id, charlie)
+        assert active_bob is True
+        assert active_charlie is True
+        assert amt_bob == PRICE
+        assert amt_charlie == PRICE * 2
+
+
+# ── acceptOffer ──────────────────────────────────────────────────────
+
+class TestAcceptOffer:
+    def test_seller_accepts_offer(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 5001
+        ticket_nft.mint(alice, token_id, sender=owner)
+        ticket_nft.approve(marketplace.address, token_id, sender=alice)
+
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+        seller_bal_before = alice.balance
+
+        receipt = marketplace.acceptOffer(token_id, bob, sender=alice)
+        gas_cost = receipt.total_fees_paid
+
+        assert ticket_nft.ownerOf(token_id) == bob.address
+        assert alice.balance == seller_bal_before + PRICE - gas_cost
+        assert receipt.status == 1
+
+    def test_accept_emits_event(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 5002
+        ticket_nft.mint(alice, token_id, sender=owner)
+        ticket_nft.approve(marketplace.address, token_id, sender=alice)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        receipt = marketplace.acceptOffer(token_id, bob, sender=alice)
+
+        events = list(receipt.decode_logs(marketplace.OfferAccepted))
+        assert len(events) == 1
+        args = events[0].event_arguments
+        assert args["seller"] == alice.address
+        assert args["buyer"] == bob.address
+        assert args["tokenId"] == token_id
+        assert args["amount"] == PRICE
+
+    def test_accept_clears_offer(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 5003
+        ticket_nft.mint(alice, token_id, sender=owner)
+        ticket_nft.approve(marketplace.address, token_id, sender=alice)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        marketplace.acceptOffer(token_id, bob, sender=alice)
+
+        _, active = marketplace.getOffer(token_id, bob)
+        assert active is False
+
+    def test_accept_cancels_active_listing(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 5004
+        ticket_nft.mint(alice, token_id, sender=owner)
+        ticket_nft.approve(marketplace.address, token_id, sender=alice)
+        marketplace.listTicket(token_id, PRICE * 3, sender=alice)
+
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+        marketplace.acceptOffer(token_id, bob, sender=alice)
+
+        _, _, listing_active = marketplace.getListing(token_id)
+        assert listing_active is False
+
+    def test_non_owner_cannot_accept(self, ticket_nft, marketplace, owner, alice, bob, charlie):
+        token_id = 5005
+        ticket_nft.mint(alice, token_id, sender=owner)
+        ticket_nft.approve(marketplace.address, token_id, sender=alice)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        with ape.reverts("not token owner"):
+            marketplace.acceptOffer(token_id, bob, sender=charlie)
+
+    def test_accept_without_approval_reverts(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 5006
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        with ape.reverts("marketplace not approved"):
+            marketplace.acceptOffer(token_id, bob, sender=alice)
+
+    def test_accept_nonexistent_offer_reverts(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 5007
+        ticket_nft.mint(alice, token_id, sender=owner)
+        ticket_nft.approve(marketplace.address, token_id, sender=alice)
+
+        with ape.reverts("no active offer"):
+            marketplace.acceptOffer(token_id, bob, sender=alice)
+
+
+# ── rejectOffer ──────────────────────────────────────────────────────
+
+class TestRejectOffer:
+    def test_seller_rejects_and_buyer_refunded(
+        self, ticket_nft, marketplace, owner, alice, bob
+    ):
+        token_id = 6001
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        buyer_bal_before = bob.balance
+
+        receipt = marketplace.rejectOffer(token_id, bob, sender=alice)
+
+        assert bob.balance == buyer_bal_before + PRICE
+        assert receipt.status == 1
+
+    def test_reject_emits_event(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 6002
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        receipt = marketplace.rejectOffer(token_id, bob, sender=alice)
+
+        events = list(receipt.decode_logs(marketplace.OfferRejected))
+        assert len(events) == 1
+        args = events[0].event_arguments
+        assert args["seller"] == alice.address
+        assert args["buyer"] == bob.address
+        assert args["tokenId"] == token_id
+
+    def test_reject_clears_offer(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 6003
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        marketplace.rejectOffer(token_id, bob, sender=alice)
+
+        _, active = marketplace.getOffer(token_id, bob)
+        assert active is False
+
+    def test_non_owner_cannot_reject(self, ticket_nft, marketplace, owner, alice, bob, charlie):
+        token_id = 6004
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        with ape.reverts("not token owner"):
+            marketplace.rejectOffer(token_id, bob, sender=charlie)
+
+    def test_reject_nonexistent_offer_reverts(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 6005
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        with ape.reverts("no active offer"):
+            marketplace.rejectOffer(token_id, bob, sender=alice)
+
+
+# ── withdrawOffer ────────────────────────────────────────────────────
+
+class TestWithdrawOffer:
+    def test_buyer_withdraws_and_gets_refund(
+        self, ticket_nft, marketplace, owner, alice, bob
+    ):
+        token_id = 7001
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        buyer_bal_before = bob.balance
+
+        receipt = marketplace.withdrawOffer(token_id, sender=bob)
+        gas_cost = receipt.total_fees_paid
+
+        assert bob.balance == buyer_bal_before + PRICE - gas_cost
+        assert receipt.status == 1
+
+    def test_withdraw_emits_event(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 7002
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        receipt = marketplace.withdrawOffer(token_id, sender=bob)
+
+        events = list(receipt.decode_logs(marketplace.OfferWithdrawn))
+        assert len(events) == 1
+        args = events[0].event_arguments
+        assert args["buyer"] == bob.address
+        assert args["tokenId"] == token_id
+
+    def test_withdraw_clears_offer(self, ticket_nft, marketplace, owner, alice, bob):
+        token_id = 7003
+        ticket_nft.mint(alice, token_id, sender=owner)
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+
+        marketplace.withdrawOffer(token_id, sender=bob)
+
+        _, active = marketplace.getOffer(token_id, bob)
+        assert active is False
+
+    def test_withdraw_nonexistent_offer_reverts(self, marketplace, bob):
+        with ape.reverts("no active offer"):
+            marketplace.withdrawOffer(99999, sender=bob)
+
+    def test_buyer_can_reoffer_after_withdraw(
+        self, ticket_nft, marketplace, owner, alice, bob
+    ):
+        token_id = 7004
+        ticket_nft.mint(alice, token_id, sender=owner)
+
+        marketplace.makeOffer(token_id, sender=bob, value=PRICE)
+        marketplace.withdrawOffer(token_id, sender=bob)
+
+        new_amount = PRICE * 2
+        marketplace.makeOffer(token_id, sender=bob, value=new_amount)
+
+        amount, active = marketplace.getOffer(token_id, bob)
+        assert amount == new_amount
+        assert active is True
+
+
+# ── getOffer view ────────────────────────────────────────────────────
+
+class TestGetOffer:
+    def test_no_offer_returns_defaults(self, marketplace, bob):
+        amount, active = marketplace.getOffer(77777, bob)
+        assert amount == 0
+        assert active is False
