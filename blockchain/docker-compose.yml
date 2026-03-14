@@ -1,27 +1,186 @@
-# Placeholder per i 5 nodi della rete privata.
-# In Fase 2 qui saranno definiti i servizi con Geth/Besu, genesis e porte RPC/P2P.
-# Per ora il comando "docker compose up" è documentato nel README principale.
+x-geth-common: &geth-common
+  image: ethereum/client-go:v1.13.15
+  entrypoint: /entrypoint.sh
+  restart: unless-stopped
+  networks:
+    - ethnet
+  healthcheck:
+    test: ["CMD-SHELL", "geth attach http://localhost:8545 --exec eth.blockNumber || exit 1"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+    start_period: 10s
 
 services:
   nodo1:
-    image: alpine:3.18
-    command: sleep infinity
-    # RPC sarà esposta su 8545 (Fase 2)
-    # ports:
-    #   - "8545:8545"
+    <<: *geth-common
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./genesis.json:/genesis.json:ro
+      - ./config.toml:/config.toml:ro
+      - ./password.txt:/password.txt:ro
+      - ./nodes/node1/keystore:/root/.ethereum/keystore:ro
+      - ./nodes/node1/nodekey:/nodekey:ro
+      - nodo1-data:/root/.ethereum
+    ports:
+      - "8545:8545"
+      - "30303:30303"
+      - "30303:30303/udp"
+    command: >-
+      --config /config.toml
+      --datadir /root/.ethereum
+      --networkid 1337
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.corsdomain "*" --http.vhosts "*"
+      --http.api eth,net,web3,personal,admin,clique,txpool,debug
+      --port 30303
+      --mine
+      --miner.etherbase 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+      --unlock 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+      --password /password.txt
+      --allow-insecure-unlock
+      --nodiscover
+      --syncmode full
 
   nodo2:
-    image: alpine:3.18
-    command: sleep infinity
+    <<: *geth-common
+    depends_on:
+      nodo1:
+        condition: service_healthy
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./genesis.json:/genesis.json:ro
+      - ./config.toml:/config.toml:ro
+      - ./password.txt:/password.txt:ro
+      - ./nodes/node2/keystore:/root/.ethereum/keystore:ro
+      - ./nodes/node2/nodekey:/nodekey:ro
+      - nodo2-data:/root/.ethereum
+    ports:
+      - "8546:8545"
+      - "30304:30303"
+      - "30304:30303/udp"
+    command: >-
+      --config /config.toml
+      --datadir /root/.ethereum
+      --networkid 1337
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.corsdomain "*" --http.vhosts "*"
+      --http.api eth,net,web3,personal,admin,clique,txpool,debug
+      --port 30303
+      --mine
+      --miner.etherbase 0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+      --unlock 0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+      --password /password.txt
+      --allow-insecure-unlock
+      --nodiscover
+      --syncmode full
 
   nodo3:
-    image: alpine:3.18
-    command: sleep infinity
+    <<: *geth-common
+    depends_on:
+      nodo1:
+        condition: service_healthy
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./genesis.json:/genesis.json:ro
+      - ./config.toml:/config.toml:ro
+      - ./password.txt:/password.txt:ro
+      - ./nodes/node3/keystore:/root/.ethereum/keystore:ro
+      - ./nodes/node3/nodekey:/nodekey:ro
+      - nodo3-data:/root/.ethereum
+    ports:
+      - "8547:8545"
+      - "30305:30303"
+      - "30305:30303/udp"
+    command: >-
+      --config /config.toml
+      --datadir /root/.ethereum
+      --networkid 1337
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.corsdomain "*" --http.vhosts "*"
+      --http.api eth,net,web3,personal,admin,clique,txpool,debug
+      --port 30303
+      --mine
+      --miner.etherbase 0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc
+      --unlock 0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc
+      --password /password.txt
+      --allow-insecure-unlock
+      --nodiscover
+      --syncmode full
 
   nodo4:
-    image: alpine:3.18
-    command: sleep infinity
+    <<: *geth-common
+    depends_on:
+      nodo1:
+        condition: service_healthy
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./genesis.json:/genesis.json:ro
+      - ./config.toml:/config.toml:ro
+      - ./password.txt:/password.txt:ro
+      - ./nodes/node4/keystore:/root/.ethereum/keystore:ro
+      - ./nodes/node4/nodekey:/nodekey:ro
+      - nodo4-data:/root/.ethereum
+    ports:
+      - "8548:8545"
+      - "30306:30303"
+      - "30306:30303/udp"
+    command: >-
+      --config /config.toml
+      --datadir /root/.ethereum
+      --networkid 1337
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.corsdomain "*" --http.vhosts "*"
+      --http.api eth,net,web3,personal,admin,clique,txpool,debug
+      --port 30303
+      --mine
+      --miner.etherbase 0x90f79bf6eb2c4f870365e785982e1f101e93b906
+      --unlock 0x90f79bf6eb2c4f870365e785982e1f101e93b906
+      --password /password.txt
+      --allow-insecure-unlock
+      --nodiscover
+      --syncmode full
 
   nodo5:
-    image: alpine:3.18
-    command: sleep infinity
+    <<: *geth-common
+    depends_on:
+      nodo1:
+        condition: service_healthy
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./genesis.json:/genesis.json:ro
+      - ./config.toml:/config.toml:ro
+      - ./password.txt:/password.txt:ro
+      - ./nodes/node5/keystore:/root/.ethereum/keystore:ro
+      - ./nodes/node5/nodekey:/nodekey:ro
+      - nodo5-data:/root/.ethereum
+    ports:
+      - "8549:8545"
+      - "30307:30303"
+      - "30307:30303/udp"
+    command: >-
+      --config /config.toml
+      --datadir /root/.ethereum
+      --networkid 1337
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.corsdomain "*" --http.vhosts "*"
+      --http.api eth,net,web3,personal,admin,clique,txpool,debug
+      --port 30303
+      --mine
+      --miner.etherbase 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65
+      --unlock 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65
+      --password /password.txt
+      --allow-insecure-unlock
+      --nodiscover
+      --syncmode full
+
+volumes:
+  nodo1-data:
+  nodo2-data:
+  nodo3-data:
+  nodo4-data:
+  nodo5-data:
+
+networks:
+  ethnet:
+    driver: bridge

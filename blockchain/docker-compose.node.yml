@@ -1,0 +1,57 @@
+# Single-node docker-compose for multi-PC LAN deployment.
+#
+# Required env vars (set in .env or export before running):
+#   NODE_NUM      – 1..5  (determines keystore/nodekey directory)
+#   NODE_ADDRESS  – Ethereum address of this node (e.g. 0xf39Fd6e5...)
+#
+# Before running:
+#   1. Regenerate config.toml with LAN IPs:
+#      uv run python scripts/generate_keys.py --hosts "IP1,IP2,IP3,IP4,IP5"
+#   2. Copy blockchain/ folder (or at least genesis.json, config.toml,
+#      password.txt, entrypoint.sh and the correct nodes/nodeN/ dir) to this PC.
+#
+# Usage:
+#   NODE_NUM=1 NODE_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+#     docker compose -f docker-compose.node.yml up -d
+
+services:
+  node:
+    image: ethereum/client-go:v1.13.15
+    entrypoint: /entrypoint.sh
+    restart: unless-stopped
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./genesis.json:/genesis.json:ro
+      - ./config.toml:/config.toml:ro
+      - ./password.txt:/password.txt:ro
+      - ./nodes/node${NODE_NUM}/keystore:/root/.ethereum/keystore:ro
+      - ./nodes/node${NODE_NUM}/nodekey:/nodekey:ro
+      - node-data:/root/.ethereum
+    ports:
+      - "8545:8545"
+      - "30303:30303"
+      - "30303:30303/udp"
+    command: >-
+      --config /config.toml
+      --datadir /root/.ethereum
+      --networkid ${CHAIN_ID:-1337}
+      --http --http.addr 0.0.0.0 --http.port 8545
+      --http.corsdomain "*" --http.vhosts "*"
+      --http.api eth,net,web3,personal,admin,clique,txpool,debug
+      --port 30303
+      --mine
+      --miner.etherbase ${NODE_ADDRESS}
+      --unlock ${NODE_ADDRESS}
+      --password /password.txt
+      --allow-insecure-unlock
+      --nodiscover
+      --syncmode full
+    healthcheck:
+      test: ["CMD-SHELL", "geth attach http://localhost:8545 --exec eth.blockNumber || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  node-data:
