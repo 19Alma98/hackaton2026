@@ -1,0 +1,17 @@
+name: hackaton2026-contracts
+
+dependencies:
+  - name: OpenZeppelin
+    github: OpenZeppelin/openzeppelin-contracts
+    version: 4.9.6
+
+solidity:
+  version: 0.8.19
+  import_remapping:
+    - "@openzeppelin=OpenZeppelin/4.9.6"
+
+node:
+  ethereum:
+    local:
+      uri: http://localhost:8545
+      chain_id: 1337
