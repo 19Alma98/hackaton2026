@@ -3,6 +3,4 @@
 
 *.spec
 
-*.hbs
-
 contracts/lib/
