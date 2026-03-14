@@ -64,12 +64,15 @@ def load_node1_key() -> str:
 
 
 def load_ente_address() -> str:
-    """Read the ente address from the generated ente_wallet.json."""
-    ente_path = PROJECT_ROOT / "ente_wallet.json"
-    if not ente_path.exists():
-        return ""
-    data = json.loads(ente_path.read_text())
-    return data.get("address", "")
+    """Read the ente address from wallets/ente.json (or legacy path)."""
+    for candidate in (
+        PROJECT_ROOT / "wallets" / "ente.json",
+        PROJECT_ROOT / "ente_wallet.json",
+    ):
+        if candidate.exists():
+            data = json.loads(candidate.read_text())
+            return data.get("address", "")
+    return ""
 
 
 def main() -> None:

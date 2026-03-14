@@ -114,50 +114,64 @@ DEPLOYER_ALIAS=my-deployer uv run ape run deploy --network ethereum:local:node
 
 Il **wallet ente** è un account dedicato all'organizzazione che emette i biglietti (deploy dei contratti e mint). È separato dai nodi validatori per tracciabilità e sicurezza.
 
-### Come viene generato
+### Come viene creato
 
-Il wallet ente è derivato deterministicamente dalla stessa mnemonic BIP-39 usata per i nodi, all'indice `NUM_NODES` (indice 3). Non è un validatore Clique, ma riceve un pre-fund di 10 000 ETH nel genesis.
+Il wallet ente si crea con `create_wallet.py`, **senza** rigenerare le chiavi dei nodi:
 
 ```bash
-# Genera chiavi nodi + wallet ente
-uv run python blockchain/scripts/generate_keys.py
+# Deterministico (mnemonic indice 3) + pre-fund nel genesis
+uv run python blockchain/scripts/create_wallet.py ente --index 3 --genesis
 ```
 
 Output:
-- `blockchain/ente_wallet.json` — indirizzo, chiave privata, path keystore
-- `blockchain/nodes/ente/keystore/` — keystore cifrato
-- `blockchain/genesis.json` — aggiornato con l'alloc per l'ente
+- `blockchain/wallets/ente.json` — indirizzo, chiave privata, keystore
+- `blockchain/genesis.json` — aggiornato con l'alloc per l'ente (10 000 ETH)
 
-Per saltare la generazione del wallet ente: `--no-ente`.
+Si può anche creare con chiave random (senza `--index`).
 
 ### Finanziamento
 
-**Opzione A – Pre-fund in genesis (default)**
-
-Se `generate_keys.py` è stato eseguito con l'ente abilitato (default), il wallet è già finanziato nel genesis con 10 000 ETH.
-
-**Opzione B – Trasferimento post-genesis**
-
-Se il genesis era già inizializzato senza l'ente, o per ricaricare il wallet:
+**Opzione A – Pre-fund in genesis (prima dell'avvio della chain)**
 
 ```bash
-# Default: trasferisce 100 ETH da node 1 al wallet ente
-uv run python blockchain/scripts/fund_wallet.py
+uv run python blockchain/scripts/create_wallet.py ente --index 3 --genesis
+```
 
-# Parametri espliciti
-uv run python blockchain/scripts/fund_wallet.py \
-    --rpc http://192.168.2.208:8545 \
-    --from-key 0xac0974... \
-    --to 0x90F79bf6... \
-    --amount 500
+Aggiunge l'indirizzo al genesis con 10 000 ETH. Usare **prima** di avviare i nodi (`docker compose up`).
+
+**Opzione B – Trasferimento post-avvio**
+
+Se la chain è già attiva, finanziare il wallet con un trasferimento da node 1:
+
+```bash
+# Al momento della creazione
+uv run python blockchain/scripts/create_wallet.py ente --index 3 --fund 100
+
+# Oppure in un secondo momento con fund_wallet.py
+uv run python blockchain/scripts/fund_wallet.py --to 0x90F79bf6... --amount 500
 ```
 
 | Parametro | Descrizione | Default |
 |---|---|---|
 | `--rpc` | URL RPC del nodo Geth | `http://localhost:8545` |
 | `--from-key` | Chiave privata del mittente (hex) | Chiave di node 1 |
-| `--to` | Indirizzo destinatario | Indirizzo ente da `ente_wallet.json` |
+| `--to` | Indirizzo destinatario | Indirizzo ente da `wallets/ente.json` |
 | `--amount` | ETH da trasferire | 100 |
+
+### Creare wallet aggiuntivi
+
+Lo stesso script crea qualsiasi wallet senza toccare chiavi esistenti:
+
+```bash
+# Wallet random
+uv run python blockchain/scripts/create_wallet.py alice
+
+# Wallet deterministico (indice 10) + fund 50 ETH
+uv run python blockchain/scripts/create_wallet.py bob --index 10 --fund 50
+
+# Listare tutti i wallet creati
+uv run python blockchain/scripts/create_wallet.py --list
+```
 
 ### Importare il wallet ente in Ape
 
@@ -168,13 +182,13 @@ cd contracts
 uv run ape run import_ente
 ```
 
-Lo script legge la chiave privata da `blockchain/ente_wallet.json` e la importa con alias `ente`. Verrà richiesta una passphrase per cifrare la chiave localmente.
+Lo script legge la chiave privata da `blockchain/wallets/ente.json` e la importa con alias `ente`. Verrà richiesta una passphrase per cifrare la chiave localmente.
 
 In alternativa, importa manualmente:
 
 ```bash
 uv run ape accounts import ente
-# incolla la chiave privata dall'ente_wallet.json
+# incolla la chiave privata da wallets/ente.json
 ```
 
 ### Usare il wallet ente per il deploy
@@ -194,10 +208,11 @@ DEPLOYER_ALIAS=ente uv run ape run deploy --network ethereum:local:node
 
 ### Riprodurre in altri ambienti
 
-1. Eseguire `generate_keys.py` con la stessa mnemonic (default: `test test ... junk`)
-2. Il wallet ente sarà sempre lo stesso indirizzo (derivazione deterministica, indice 3)
-3. Importare in Ape con `import_ente.py`
-4. Se il genesis è già stato inizializzato, usare `fund_wallet.py` per finanziare
+1. Eseguire `generate_keys.py` per generare le chiavi nodo e il genesis
+2. Creare il wallet ente: `create_wallet.py ente --index 3 --genesis`
+3. L'indice 3 dalla stessa mnemonic produce sempre lo stesso indirizzo
+4. Importare in Ape con `import_ente.py`
+5. Se il genesis è già stato inizializzato, usare `--fund` o `fund_wallet.py`
 
 ## Output del deploy
 
