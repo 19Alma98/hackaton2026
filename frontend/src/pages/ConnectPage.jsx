@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWeb3 } from '../hooks/useWeb3'
 import { stringToGradient } from '../utils/colors'
 import { shortAddress } from '../utils/format'
+import { getWallets } from '../api/generated/wallets/wallets'
 
-const DEMO_ACCOUNTS = [
+const { getWalletsApiWalletsGet } = getWallets()
+
+const FALLBACK_DEMO_ACCOUNTS = [
   { name: 'Marco R.', address: '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' },
   { name: 'Laura B.', address: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' },
   { name: 'Andrea C.', address: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc' },
@@ -15,9 +18,21 @@ export default function ConnectPage() {
   const navigate = useNavigate()
   const [custom, setCustom] = useState('')
   const [error, setError] = useState(null)
+  const [demoAccounts, setDemoAccounts] = useState(FALLBACK_DEMO_ACCOUNTS)
+  const [loadingAccounts, setLoadingAccounts] = useState(true)
 
-  const handleSelect = (address) => {
-    login(address)
+  useEffect(() => {
+    getWalletsApiWalletsGet()
+      .then((data) => {
+        const active = data?.filter((w) => w.balance_eth > 0)
+        if (active && active.length > 0) setDemoAccounts(active)
+      })
+      .catch(() => { /* keep fallback */ })
+      .finally(() => setLoadingAccounts(false))
+  }, [])
+
+  const handleSelect = (account) => {
+    login(account.address, account.name)
     navigate('/home', { replace: true })
   }
 
@@ -57,10 +72,15 @@ export default function ConnectPage() {
             Accedi come utente demo
           </p>
           <div className="flex flex-col gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
+            {loadingAccounts
+              ? [1, 2, 3].map((i) => (
+                  <div key={i} className="w-full h-[60px] bg-gray-800 rounded-2xl animate-pulse" />
+                ))
+              : null}
+            {!loadingAccounts && demoAccounts.map((account) => (
               <button
                 key={account.address}
-                onClick={() => handleSelect(account.address)}
+                onClick={() => handleSelect(account)}
                 className="w-full flex items-center gap-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-violet-700 rounded-2xl px-4 py-3 transition-colors text-left"
               >
                 <Avatar address={account.address} />

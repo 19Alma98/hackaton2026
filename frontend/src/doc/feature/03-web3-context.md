@@ -1,8 +1,8 @@
 ---
 id: 03
 title: Web3 Context — ethers.js
-status: completed
-priority: high
+status: cancelled
+priority: —
 ---
 
 # Plan 03 — Web3 Context

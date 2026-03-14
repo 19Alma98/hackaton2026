@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWeb3 } from '../hooks/useWeb3'
-import { MY_TICKETS } from '../mock'
 import { stringToGradient } from '../utils/colors'
+import { useMyTickets } from '../api/hooks/useMyTickets'
+import { useWallet } from '../api/hooks/useWallet'
 
 const MOCK_STATS = {
   purchased: 7,
@@ -14,7 +15,10 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
 
-  const owned = MY_TICKETS.filter((t) => t.status === 'owned').length
+  const { tickets } = useMyTickets(address)
+  const { wallet } = useWallet(address)
+
+  const owned = tickets.filter((t) => t.status === 'owned').length
   const gradient = stringToGradient(address)
 
   const handleCopy = () => {
@@ -29,7 +33,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="bg-gray-950 text-white flex flex-col">
 
       {/* Header profilo */}
       <div className="px-4 pt-10 pb-6 flex flex-col items-center gap-4 border-b border-gray-800">
@@ -66,10 +70,13 @@ export default function ProfilePage() {
           <StatCard value={MOCK_STATS.purchased} label="Acquistati" color="text-emerald-300" />
           <StatCard value={MOCK_STATS.sold} label="Venduti" color="text-orange-300" />
         </div>
+        <div className="mt-3 bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <span className="text-xs text-gray-500 uppercase tracking-widest">Balance</span>
+          <span className="text-sm font-bold text-violet-300">
+            {wallet?.balance_eth != null ? `${wallet.balance_eth.toFixed(4)} ETH` : '—'}
+          </span>
+        </div>
       </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
 
       {/* Esci */}
       <div className="px-4 py-6">

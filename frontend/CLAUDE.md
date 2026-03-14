@@ -3,8 +3,19 @@
 ## Stack
 - React + Vite 8
 - Tailwind CSS v4 (via `@tailwindcss/vite` plugin)
-- ethers.js v6
 - react-router-dom
+- axios (via orval-generated client)
+
+## Architettura API
+
+Il frontend **non chiama la blockchain direttamente**. Tutte le chiamate passano dal backend FastAPI:
+
+- Client generato da Orval in `src/api/generated/`
+- Hook React in `src/api/hooks/` (`useMyTickets`, `useForSaleListings`, `useWallet`)
+- Autenticazione via `AuthContext` (indirizzo wallet selezionato dall'utente)
+- `axiosInstance.ts` configura la baseURL: `VITE_API_URL ?? 'http://localhost:8000'`
+
+**Non usare** `Web3Context`, `useNFT`, `useMarketplace`, `WrongNetworkBanner` — eliminati.
 
 ## Documentazione
 
@@ -28,8 +39,5 @@ Leggi il contenuto completo di un plan **solo su richiesta esplicita** o quando 
 ## Variabili d'ambiente
 
 ```
-VITE_CHAIN_ID=1337
-VITE_RPC_URL=http://192.168.2.208:8545
-VITE_NFT_CONTRACT=          # da completare (backend)
-VITE_MARKETPLACE_CONTRACT=  # da completare (backend)
+VITE_API_URL=http://localhost:8000
 ```

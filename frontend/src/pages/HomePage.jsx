@@ -5,7 +5,7 @@ import { shortAddress, formatEventDate, formatEth } from '../utils/format'
 import { stringToGradient } from '../utils/colors'
 
 export default function HomePage() {
-  const { address } = useWeb3()
+  const { address, name } = useWeb3()
   const navigate = useNavigate()
 
   const [hero, ...rest] = EVENTS
@@ -19,7 +19,7 @@ export default function HomePage() {
           <Avatar address={address} />
           <div className="leading-tight">
             <p className="text-xs text-gray-500">Connesso come</p>
-            <p className="text-sm font-mono font-medium text-white">{shortAddress(address)}</p>
+            <p className="text-sm font-medium text-white">{name ?? shortAddress(address)}</p>
           </div>
         </div>
       </header>

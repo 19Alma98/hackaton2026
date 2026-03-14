@@ -1,10 +1,14 @@
 import { useNavigate } from 'react-router-dom'
-import { MY_TICKETS, EVENTS } from '../mock'
+import { EVENTS } from '../mock'
 import { formatEventDate } from '../utils/format'
 import { stringToGradient } from '../utils/colors'
+import { useMyTickets } from '../api/hooks/useMyTickets'
+import { useWeb3 } from '../hooks/useWeb3'
 
 export default function MyTicketsPage() {
   const navigate = useNavigate()
+  const { address } = useWeb3()
+  const { tickets, loading } = useMyTickets(address)
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -13,17 +17,21 @@ export default function MyTicketsPage() {
       <div className="px-4 pt-8 pb-5">
         <h1 className="text-2xl font-bold text-white">I miei biglietti</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          {MY_TICKETS.length > 0
-            ? `${MY_TICKETS.length} bigliett${MY_TICKETS.length === 1 ? 'o' : 'i'} nel tuo wallet`
-            : 'Nessun biglietto ancora'}
+          {loading
+            ? 'Caricamento…'
+            : tickets.length > 0
+              ? `${tickets.length} bigliett${tickets.length === 1 ? 'o' : 'i'} nel tuo wallet`
+              : 'Nessun biglietto ancora'}
         </p>
       </div>
 
-      {MY_TICKETS.length === 0 ? (
+      {loading ? (
+        <SkeletonCards />
+      ) : tickets.length === 0 ? (
         <EmptyState onDiscover={() => navigate('/home')} />
       ) : (
         <div className="px-4 grid grid-cols-2 gap-3 pb-6">
-          {MY_TICKETS.map((ticket) => {
+          {tickets.map((ticket) => {
             const event = EVENTS.find((e) => e.id === ticket.eventId)
             return (
               <TicketCard
@@ -80,6 +88,17 @@ function TicketCard({ ticket, event, onClick }) {
         </p>
       </div>
     </button>
+  )
+}
+
+/* ── Skeleton ────────────────────────────────────────── */
+function SkeletonCards() {
+  return (
+    <div className="px-4 grid grid-cols-2 gap-3 pb-6">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="h-36 rounded-2xl bg-gray-800 animate-pulse" />
+      ))}
+    </div>
   )
 }
 

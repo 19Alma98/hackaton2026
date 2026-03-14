@@ -1,23 +1,37 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { MY_TICKETS, EVENTS } from '../mock'
+import { EVENTS } from '../mock'
 import { formatEventDate, formatEth } from '../utils/format'
 import { stringToGradient } from '../utils/colors'
 import BottomSheet from '../components/BottomSheet'
 import Toast from '../components/Toast'
+import { useMyTickets } from '../api/hooks/useMyTickets'
+import { useWeb3 } from '../hooks/useWeb3'
+import { useMarketplaceActions } from '../api/hooks/useMarketplaceActions'
 
 export default function TicketDetailPage() {
   const { tokenId } = useParams()
   const navigate = useNavigate()
+  const { address } = useWeb3()
+  const { tickets, loading: ticketsLoading, refetch } = useMyTickets(address)
+  const { listTicket, cancelListing, actionLoading } = useMarketplaceActions()
 
-  const ticket = MY_TICKETS.find((t) => t.tokenId === tokenId)
+  const ticket = tickets.find((t) => t.tokenId === tokenId)
   const event = ticket ? EVENTS.find((e) => e.id === ticket.eventId) : null
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [price, setPrice] = useState('')
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
+
+  if (ticketsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      </div>
+    )
+  }
 
   if (!ticket || !event) {
     return (
@@ -33,18 +47,28 @@ export default function TicketDetailPage() {
   const handleList = async () => {
     if (!price || isNaN(parseFloat(price))) return
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1600))
+    const { ok, error } = await listTicket(address, ticket.tokenId, price)
     setLoading(false)
-    setSheetOpen(false)
-    setPrice('')
-    setToast({ message: `Biglietto messo in vendita a ${price} ETH`, type: 'success' })
+    if (ok) {
+      setSheetOpen(false)
+      setPrice('')
+      setToast({ message: `Biglietto messo in vendita a ${price} ETH`, type: 'success' })
+      refetch()
+    } else {
+      setToast({ message: error ?? 'Errore durante la vendita', type: 'error' })
+    }
   }
 
   const handleDelist = async () => {
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1600))
+    const { ok, error } = await cancelListing(address, ticket.tokenId)
     setLoading(false)
-    setToast({ message: 'Biglietto ritirato dalla vendita', type: 'success' })
+    if (ok) {
+      setToast({ message: 'Biglietto ritirato dalla vendita', type: 'success' })
+      refetch()
+    } else {
+      setToast({ message: error ?? 'Errore durante il ritiro', type: 'error' })
+    }
   }
 
   return (

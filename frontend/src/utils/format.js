@@ -1,3 +1,5 @@
+import { formatEther } from 'ethers'
+
 /** 0x1234...abcd */
 export function shortAddress(address) {
   if (!address) return ''
@@ -17,4 +19,13 @@ export function formatEventDate(isoString) {
 /** "0.12 ETH" */
 export function formatEth(value) {
   return `${value} ETH`
+}
+
+/** "0.15 ETH" — converte una stringa wei in ETH leggibile */
+export function formatWei(weiString) {
+  try {
+    return `${formatEther(weiString)} ETH`
+  } catch {
+    return '— ETH'
+  }
 }

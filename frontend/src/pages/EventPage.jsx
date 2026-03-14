@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { EVENTS, LISTINGS } from '../mock'
+import { EVENTS } from '../mock'
 import { shortAddress, formatEventDate, formatEth } from '../utils/format'
+import { useForSaleListings } from '../api/hooks/useForSaleListings'
+import { useMarketplaceActions } from '../api/hooks/useMarketplaceActions'
+import { useWeb3 } from '../hooks/useWeb3'
 import BottomSheet from '../components/BottomSheet'
 import Toast from '../components/Toast'
 
@@ -9,8 +12,11 @@ export default function EventPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
+  const { address } = useWeb3()
+  const { buyTicket } = useMarketplaceActions()
   const event = EVENTS.find((e) => e.id === id)
-  const listings = LISTINGS.filter((l) => l.eventId === id)
+  const { listings: allListings, loading: listingsLoading, error: listingsError } = useForSaleListings()
+  const listings = allListings.filter((l) => l.eventId === id)
 
   const [selectedListing, setSelectedListing] = useState(null)
   const [buying, setBuying] = useState(false)
@@ -26,12 +32,16 @@ export default function EventPage() {
 
   const handleBuyConfirm = async () => {
     setBuying(true)
-    // Mock: simula attesa transazione
-    await new Promise((r) => setTimeout(r, 1800))
+    const { ok, error } = await buyTicket(address, Number(selectedListing.tokenId), selectedListing.priceWei)
     setBuying(false)
-    setSelectedListing(null)
-    setToast({ message: 'Biglietto acquistato!', type: 'success' })
-    setTimeout(() => navigate('/tickets'), 1600)
+    if (ok) {
+      setSelectedListing(null)
+      setToast({ message: 'Biglietto acquistato!', type: 'success' })
+      setTimeout(() => navigate('/tickets'), 1600)
+    } else {
+      setToast({ message: error ?? 'Acquisto fallito', type: 'error' })
+      setSelectedListing(null)
+    }
   }
 
   return (
@@ -71,7 +81,11 @@ export default function EventPage() {
           <span className="text-xs text-gray-600">{listings.length} nel marketplace</span>
         </div>
 
-        {listings.length === 0 ? (
+        {listingsLoading ? (
+          <SkeletonListings />
+        ) : listingsError ? (
+          <p className="text-sm text-rose-400 text-center py-6">Errore caricamento biglietti.</p>
+        ) : listings.length === 0 ? (
           <EmptyState />
         ) : (
           listings.map((listing) => (
@@ -103,7 +117,7 @@ export default function EventPage() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0 text-gray-500">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
-              Transazione firmata con MetaMask · Il token NFT sarà trasferito al tuo wallet
+              Il token NFT sarà trasferito al tuo wallet
             </div>
 
             <div className="flex gap-3">
@@ -197,6 +211,16 @@ function Spinner() {
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
     </svg>
+  )
+}
+
+function SkeletonListings() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-16 rounded-2xl bg-gray-800 animate-pulse" />
+      ))}
+    </div>
   )
 }
 
