@@ -9,6 +9,10 @@ Usage (LAN – separate PCs):
     uv run python blockchain/scripts/generate_keys.py \
         --hosts "192.168.1.10,192.168.1.11,192.168.1.12"
 
+Add a new node (same mnemonic, new IP; does not change genesis):
+    uv run python blockchain/scripts/generate_keys.py add-node \
+        --node-number 4 --host 192.168.1.14
+
 All outputs are written under blockchain/.
 
 To create additional wallets (e.g. the ente/organization wallet)
@@ -147,11 +151,109 @@ def build_config_toml(enodes: list[str]) -> str:
     )
 
 
+def write_single_node_dir(
+    node_number: int, account: dict, password: str
+) -> None:
+    """Write keystore and nodekey for a single node (e.g. node4)."""
+    node_dir = PROJECT_ROOT / "nodes" / f"node{node_number}"
+    ks_dir = node_dir / "keystore"
+    ks_dir.mkdir(parents=True, exist_ok=True)
+
+    encrypted = Account.encrypt(account["private_key"], password)
+    addr_lower = account["address"].lower().replace("0x", "")
+    ks_path = ks_dir / f"UTC--node{node_number}--{addr_lower}"
+    ks_path.write_text(json.dumps(encrypted, indent=2))
+
+    nodekey_path = node_dir / "nodekey"
+    raw_hex = account["private_key"]
+    if raw_hex.startswith("0x"):
+        raw_hex = raw_hex[2:]
+    nodekey_path.write_text(raw_hex)
+
+
+def account_to_enode(account: dict, host: str, port: int = 30303) -> str:
+    """Build enode URL for an account."""
+    pubkey = account["public_key"]
+    if pubkey.startswith("0x"):
+        pubkey = pubkey[2:]
+    return f"enode://{pubkey}@{host}:{port}"
+
+
+def cmd_add_node(
+    node_number: int,
+    host: str,
+    mnemonic: str = DEFAULT_MNEMONIC,
+    password: str = DEFAULT_PASSWORD,
+) -> None:
+    """Add a new node: create its key dir and append enode to config/static-nodes."""
+    if node_number < 1:
+        raise ValueError("node_number must be >= 1")
+    accounts = derive_accounts(mnemonic, node_number)
+    account = accounts[node_number - 1]
+
+    write_single_node_dir(node_number, account, password)
+    enode = account_to_enode(account, host.strip())
+
+    # Append to static-nodes.json
+    static_path = PROJECT_ROOT / "static-nodes.json"
+    if static_path.exists():
+        current = json.loads(static_path.read_text())
+        if not isinstance(current, list):
+            current = []
+    else:
+        current = []
+    if enode in current:
+        print(f"Enode already in static-nodes.json: {enode[:50]}...")
+    else:
+        current.append(enode)
+        static_path.write_text(json.dumps(current, indent=2) + "\n")
+        print(f"Appended to static-nodes.json: {enode[:60]}...")
+
+    # Keep config.toml in sync with static-nodes.json
+    toml_path = PROJECT_ROOT / "config.toml"
+    toml_path.write_text(build_config_toml(current))
+
+    print(f"Created nodes/node{node_number}/ with address {account['address']}")
+    print(f"Updated config.toml and static-nodes.json with enode @ {host}:30303")
+    print()
+    print("Next steps:")
+    print(f"  1. Copy blockchain/ to the new PC (include nodes/node{node_number}/)")
+    print("  2. On existing nodes: copy updated config.toml and static-nodes.json")
+    print("     so they know the new peer, then restart geth if needed.")
+    print(f"  3. On the new PC: NODE_NUM={node_number} NODE_ADDRESS={account['address']} \\")
+    print("     docker compose -f docker-compose.node.yml up -d")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    subparsers = parser.add_subparsers(dest="command", help="Command")
+
+    # --- add-node ---
+    add_parser = subparsers.add_parser("add-node", help="Add a new node (new IP); does not change genesis")
+    add_parser.add_argument(
+        "--node-number",
+        type=int,
+        required=True,
+        help="Node number (e.g. 4 for the 4th node)",
+    )
+    add_parser.add_argument(
+        "--host",
+        required=True,
+        help="IP or hostname of the new node (e.g. 192.168.1.14)",
+    )
+    add_parser.add_argument(
+        "--mnemonic",
+        default=DEFAULT_MNEMONIC,
+        help="Same mnemonic used for existing nodes",
+    )
+    add_parser.add_argument(
+        "--password", default=DEFAULT_PASSWORD, help="Keystore password",
+    )
+
+    # --- generate: options on main parser so "generate_keys.py --hosts ..." works ---
     parser.add_argument(
         "--mnemonic",
         default=DEFAULT_MNEMONIC,
@@ -171,10 +273,21 @@ def main() -> None:
             "service names (nodo1..nodoN) are used."
         ),
     )
+
     args = parser.parse_args()
 
+    if getattr(args, "command", None) == "add-node":
+        cmd_add_node(
+            node_number=args.node_number,
+            host=args.host,
+            mnemonic=args.mnemonic,
+            password=args.password,
+        )
+        return
+
+    # generate (default when no subcommand)
     hosts: list[str] | None = None
-    if args.hosts:
+    if getattr(args, "hosts", None):
         hosts = [h.strip() for h in args.hosts.split(",")]
         if len(hosts) != NUM_NODES:
             parser.error(
