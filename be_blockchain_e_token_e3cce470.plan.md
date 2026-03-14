@@ -76,8 +76,8 @@ flowchart LR
 | Blockchain            | Geth (Go Ethereum) o Hyperledger Besu         | Entrambi supportano reti private, consenso adatto a pochi nodi, RPC standard. Besu ha IBFT2 “chiavi in mano”.                                                                  |
 | Container             | Docker + Docker Compose (per sviluppo locale) | Un `docker-compose` può descrivere i 5 nodi; in hackathon ogni persona può lanciare il “proprio” nodo da uno stesso Compose o da script che si connettono agli altri.          |
 | Smart contract        | Solidity                                      | Standard per Ethereum; molti tutorial e librerie (OpenZeppelin) per token e marketplace.                                                                                       |
-| Tooling contract      | Hardhat                                       | Compilazione, test, deploy da script; integrazione con rete locale/privata.                                                                                                    |
-| “Backend” applicativo | Opzionale: Node.js/Express (o simile)         | Se serve un’API REST che legge dalla chain (es. “ultimi blocchi”, “lista biglietti in vendita”) o che fornisce configurazione (endpoint RPC, indirizzo contratto) al frontend. |
+| Tooling contract      | Brownie                                       | Compilazione, test in Python, deploy da script; integrazione con rete locale/privata.                                                                                                    |
+| “Backend” applicativo | Opzionale: Python/FastAPI (o Flask)         | Se serve un’API REST che legge dalla chain (es. “ultimi blocchi”, “lista biglietti in vendita”) o che fornisce configurazione (endpoint RPC, indirizzo contratto) al frontend. |
 
 
 Per “BE che permette di tirare su la blockchain” intendo:
@@ -93,7 +93,7 @@ Per “BE che permette di tirare su la blockchain” intendo:
 ### Fase 1: Ambiente e repository
 
 - **1.1** Creare la struttura del progetto (es. cartelle `blockchain/`, `contracts/`, `backend-api/` se serve).
-- **1.2** Documentare requisiti: Docker e Docker Compose installati su ogni PC; Node.js per Hardhat e eventuale API.
+- **1.2** Documentare requisiti: Docker e Docker Compose installati su ogni PC; Python 3.x per Brownie e eventuale API.
 - **1.3** Un README con: come clonare il repo, come avviare i 5 nodi (vedi sotto), come esporre la porta RPC di un nodo per il FE.
 
 Nessuna nozione di blockchain richiesta qui: solo “avviare 5 container e avere un endpoint RPC”.
@@ -136,7 +136,7 @@ Un secondo contratto che:
   - permette a chiunque di **acquistare** pagando il prezzo in ether della chain (o in un token ERC-20 se preferite); alla conferma, il contratto trasferisce il token dal venditore al compratore e il pagamento al venditore.
   - eventi tipo `Listed(tokenId, price)`, `Sold(tokenId, buyer, price)` per il FE.
 - **3.4 Test**  
-Con Hardhat, scrivere test in JavaScript/TypeScript che: deploy su rete locale Hardhat, mint di alcuni token, listing e acquisto. Così verificate la logica senza toccare i 5 nodi.
+Con Brownie, scrivere test in Python che: deploy su rete locale Brownie, mint di alcuni token, listing e acquisto. Così verificate la logica senza toccare i 5 nodi.
 
 Questa fase realizza “creazione e scambio di token” sulla chain.
 
@@ -144,25 +144,25 @@ Questa fase realizza “creazione e scambio di token” sulla chain.
 
 ### Fase 4: Deploy sulla rete privata
 
-- **4.1 Configurazione Hardhat**  
-Aggiungere in `hardhat.config` una rete tipo `private` con `url: "http://IP_PC1:8545"` (o l’RPC del nodo a cui avete accesso) e `chainId` uguale a quello del genesis.
+- **4.1 Configurazione Brownie**  
+Aggiungere in `brownie-config.yaml (o network.yaml)` una rete tipo `private` con `url: "http://IP_PC1:8545"` (o l’RPC del nodo a cui avete accesso) e `chainId` uguale a quello del genesis.
 - **4.2 Script di deploy**  
-Script che: deploy del contratto ERC-721, deploy del Marketplace (passando l’indirizzo del token), eventuale mint iniziale per l’ente. Salvare gli **indirizzi dei contratti** e il **ABI** in file (es. JSON) che il frontend (e l’eventuale API) useranno.
+Script Python che: deploy del contratto ERC-721, deploy del Marketplace (passando l’indirizzo del token), eventuale mint iniziale per l’ente. Salvare gli **indirizzi dei contratti** e il **ABI** in file (es. JSON) che il frontend (e l’eventuale API) useranno.
 - **4.3 Wallet dell’ente**  
 L’“ente” che emette i biglietti deve essere un wallet (chiave privata) con cui firmate le transazioni di mint. Creare un wallet dedicato, finanziarlo con ether sulla chain privata (pre-minato nel genesis o trasferito da un altro account), e usarlo negli script di deploy e mint.
 - **4.4 Documentazione**  
-Istruzioni: “Dopo aver avviato i 5 nodi, eseguite `npx hardhat run scripts/deploy.js --network private` da un solo PC; tenete salvati indirizzo contratto token e marketplace”.
+Istruzioni: “Dopo aver avviato i 5 nodi, eseguite `brownie run scripts/deploy.py --network private` da un solo PC; tenete salvati indirizzo contratto token e marketplace”.
 
 ---
 
 ### Fase 5: Backend API (opzionale ma utile per il FE)
 
 - **5.1 Ruolo**  
-Un piccolo servizio (es. Express) che:
+Un piccolo servizio (es. FastAPI o Flask) che:
   - espone endpoint tipo: “ultimi N blocchi”, “eventi Listed/Sold”, “biglietti di un utente”, “lista biglietti in vendita”.
-  - legge dalla chain via Web3/ethers collegandosi all’RPC di un nodo (es. stesso PC dove gira l’API, o un nodo designato).
+  - legge dalla chain via web3.py collegandosi all’RPC di un nodo (es. stesso PC dove gira l’API, o un nodo designato).
 - **5.2 Implementazione**  
-Usare `ethers.js` (o web3.js) per connettersi all’RPC, leggere eventi (log) e stato dei contratti (balanceOf, getListing, ecc.). Nessuna “blockchain” da programmare: solo chiamate RPC e parsing di eventi.
+Usare **web3.py** per connettersi all’RPC, leggere eventi (log) e stato dei contratti (balanceOf, getListing, ecc.). Nessuna “blockchain” da programmare: solo chiamate RPC e parsing di eventi.
 - **5.3 Configurazione**  
 L’API deve conoscere: URL RPC, indirizzi dei contratti token e marketplace, ABI. Tutto in config/env; il FE può anche chiamare l’API per ottenere “config” (indirizzo contratto, chainId) se non volete hardcodare nel frontend.
 
@@ -174,7 +174,7 @@ Questo è il “BE” in senso classico: un server che il frontend usa per visua
 
 - **6.1 README**  
   - Cosa fa il progetto (blockchain privata, token biglietti, marketplace).
-  - Prerequisiti (Docker, Node, npm/yarn).
+  - Prerequisiti (Docker, Python 3.x, pip/venv).
   - Come avviare i 5 nodi (scenario “tutti su un PC” e “5 PC separati”).
   - Come deployare i contratti e dove trovare gli indirizzi.
   - Come avviare l’API (se presente) e come il FE si connette (RPC o API).
@@ -188,9 +188,9 @@ Cosa controllare se i nodi non si vedono (firewall, IP, porta P2P), se le transa
 ## Difficoltà stimata e tempi (hackathon)
 
 - **Fase 2 (rete 5 nodi)**: media–alta la prima volta (genesis, P2P tra 5 PC). Consiglio: far funzionare prima **tutti e 5 i nodi su un solo PC** con Docker Compose; poi separare su 5 PC.
-- **Fase 3 (contratti)**: media se qualcuno ha già visto Solidity; OpenZeppelin e Hardhat riducono molto il lavoro.
+- **Fase 3 (contratti)**: media se qualcuno ha già visto Solidity; OpenZeppelin e Brownie riducono molto il lavoro.
 - **Fase 4 (deploy)**: bassa una volta che la rete è su.
-- **Fase 5 (API)**: bassa con ethers.js e un po’ di Express.
+- **Fase 5 (API)**: bassa con web3.py e FastAPI (o Flask).
 
 Per un hackathon, ordine sensato: **2 (rete locale 5 nodi su 1 PC) → 3 (contratti + test) → 4 (deploy) → 5 (API) → 2b (eventualmente 5 PC separati)**. Il FE che “fa vedere la chain” si appoggia all’RPC e/o all’API di questa BE.
 
@@ -198,7 +198,7 @@ Per un hackathon, ordine sensato: **2 (rete locale 5 nodi su 1 PC) → 3 (contra
 
 ## Riepilogo deliverable BE
 
-- Repository con: **genesis**, **Dockerfile e docker-compose** per i 5 nodi, **configurazione Hardhat**, **contratti Solidity** (token ERC-721 + marketplace), **script di deploy**, **eventuale API** (Node/Express + ethers), **README e istruzioni** per il team.  
+- Repository con: **genesis**, **Dockerfile e docker-compose** per i 5 nodi, **configurazione Brownie**, **contratti Solidity** (token ERC-721 + marketplace), **script di deploy** (Python), **eventuale API** (Python/FastAPI + web3.py), **README e istruzioni** per il team.  
 - La “rete” è proprio **5 container** (uno per PC in produzione hackathon); la “creazione e scambio di token” avviene tramite gli smart contract; il BE espone la chain (e i dati utili) al frontend tramite RPC e, se volete, un’API REST.
 
 Se vuoi, nel passo successivo possiamo entrare nel dettaglio di **un solo** pezzo (es. solo genesis + Docker per Geth, o solo lo schema dei contratti Solidity) con snippet e nomi file concreti.

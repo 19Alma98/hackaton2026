@@ -33,7 +33,7 @@ In sintesi: **il backend espone la rete (RPC) e i contratti; il tuo MetaMask è 
 | ID   | User story | Priorità |
 |------|------------|----------|
 | US 1.1.1 | Come **sviluppatore**, vorrei una struttura di cartelle (`blockchain/`, `contracts/`, `backend-api/`) così che io e il team sappiamo dove mettere codice e configurazioni. | Must |
-| US 1.1.2 | Come **membro del team**, vorrei un documento dei prerequisiti (Docker, Docker Compose, Node.js) così che possa preparare il mio PC prima di iniziare. | Must |
+| US 1.1.2 | Come **membro del team**, vorrei un documento dei prerequisiti (Docker, Docker Compose, Python 3.x) così che possa preparare il mio PC prima di iniziare. | Must |
 | US 1.1.3 | Come **nuovo arrivato**, vorrei un README che spieghi come clonare il repo e avviare i 5 nodi così che possa contribuire senza conoscere la blockchain. | Must |
 | US 1.1.4 | Come **frontend developer**, vorrei sapere come ottenere l’endpoint RPC di un nodo così che il frontend possa connettersi alla chain. | Must |
 
@@ -120,20 +120,20 @@ In sintesi: **il backend espone la rete (RPC) e i contratti; il tuo MetaMask è 
 
 | ID   | User story | Priorità |
 |------|------------|----------|
-| US 3.3.1 | Come **sviluppatore**, vorrei test Hardhat su rete locale che fanno deploy, mint, listing e acquisto così che possa iterare velocemente. | Must |
+| US 3.3.1 | Come **sviluppatore**, vorrei test Brownie su rete locale che fanno deploy, mint, listing e acquisto così che possa iterare velocemente. | Must |
 | US 3.3.2 | Come **team**, vorrei che i test verifichino i casi principali (mint solo owner, acquisto solo se prezzo pagato) così che non introduciamo regressioni. | Should |
 
 ---
 
 ## Fase 4: Deploy sulla rete privata
 
-### Feature 4.1 – Configurazione Hardhat per rete privata
+### Feature 4.1 – Configurazione Brownie per rete privata
 
-**Obiettivo:** Hardhat configurato per deploy sulla chain a 5 nodi.
+**Obiettivo:** Brownie configurato per deploy sulla chain a 5 nodi.
 
 | ID   | User story | Priorità |
 |------|------------|----------|
-| US 4.1.1 | Come **operatore**, vorrei una rete `private` in hardhat.config con URL RPC (es. `http://IP_PC1:8545`) e chainId del genesis così che il deploy punti alla nostra chain. | Must |
+| US 4.1.1 | Come **operatore**, vorrei una rete `private` in `brownie-config.yaml` (o `network.yaml`) con URL RPC (es. `http://IP_PC1:8545`) e chainId del genesis così che il deploy punti alla nostra chain. | Must |
 | US 4.1.2 | Come **team**, vorrei che il chainId in config coincida con il genesis così che non ci siano errori di rete. | Must |
 
 ### Feature 4.2 – Script di deploy e artefatti
@@ -142,7 +142,7 @@ In sintesi: **il backend espone la rete (RPC) e i contratti; il tuo MetaMask è 
 
 | ID   | User story | Priorità |
 |------|------------|----------|
-| US 4.2.1 | Come **operatore**, vorrei uno script che faccia deploy di ERC-721 e Marketplace (con indirizzo token al marketplace) così che un solo comando configuri la chain. | Must |
+| US 4.2.1 | Come **operatore**, vorrei uno script Python che faccia deploy di ERC-721 e Marketplace (con indirizzo token al marketplace) così che un solo comando configuri la chain. | Must |
 | US 4.2.2 | Come **operatore**, vorrei un mint iniziale opzionale per l’ente nello script così che ci siano biglietti da subito per test. | Should |
 | US 4.2.3 | Come **frontend/API**, vorrei indirizzi dei contratti e ABI salvati in file (es. JSON) così che non debba cercarli a mano dopo ogni deploy. | Must |
 
@@ -182,11 +182,11 @@ In sintesi: **il backend espone la rete (RPC) e i contratti; il tuo MetaMask è 
 
 ### Feature 5.2 – Implementazione e connettività
 
-**Obiettivo:** API che usa ethers.js (o web3.js) e si connette a un nodo RPC.
+**Obiettivo:** API che usa web3.py e si connette a un nodo RPC.
 
 | ID   | User story | Priorità |
 |------|------------|----------|
-| US 5.2.1 | Come **sviluppatore API**, vorrei usare ethers.js per leggere eventi (log) e stato (balanceOf, getListing) così che l’implementazione sia standard. | Must |
+| US 5.2.1 | Come **sviluppatore API**, vorrei usare web3.py per leggere eventi (log) e stato (balanceOf, getListing) così che l’implementazione sia standard. | Must |
 | US 5.2.2 | Come **operatore**, vorrei che l’API legga da un solo nodo RPC (configurabile) così che non dipenda da tutti e 5 i nodi. | Must |
 
 ### Feature 5.3 – Configurazione e config per il FE
@@ -209,7 +209,7 @@ In sintesi: **il backend espone la rete (RPC) e i contratti; il tuo MetaMask è 
 | ID   | User story | Priorità |
 |------|------------|----------|
 | US 6.1.1 | Come **nuovo membro**, vorrei capire in due minuti cosa fa il progetto (blockchain privata, token biglietti, marketplace) così che possa orientarmi. | Must |
-| US 6.1.2 | Come **operatore**, vorrei prerequisiti (Docker, Node, npm/yarn) elencati chiaramente così che possa preparare l’ambiente. | Must |
+| US 6.1.2 | Come **operatore**, vorrei prerequisiti (Docker, Python 3.x, pip/venv) elencati chiaramente così che possa preparare l’ambiente. | Must |
 | US 6.1.3 | Come **operatore**, vorrei istruzioni per “tutti i nodi su un PC” e “5 PC separati” così che possa scegliere lo scenario adatto. | Must |
 | US 6.1.4 | Come **operatore**, vorrei sapere come deployare i contratti e dove trovare gli indirizzi così che il flusso sia completo. | Must |
 | US 6.1.5 | Come **frontend**, vorrei sapere come avviare l’API (se presente) e come connettermi (RPC o API) così che l’integrazione sia chiara. | Must |
@@ -240,9 +240,9 @@ In sintesi: **il backend espone la rete (RPC) e i contratti; il tuo MetaMask è 
 |------|--------------------|---------------------------------|
 | 1    | Struttura progetto, prerequisiti, README iniziale | 4 |
 | 2    | Genesis, chiavi, Docker, connessione 5 PC, doc rete | 10 |
-| 3    | ERC-721, Marketplace, test Hardhat | 8 |
-| 4    | Hardhat private, script deploy, wallet ente, doc deploy | 8 |
-| 5    | Endpoint API, implementazione ethers, config | 6 |
+| 3    | ERC-721, Marketplace, test Brownie | 8 |
+| 4    | Brownie private, script deploy, wallet ente, doc deploy | 8 |
+| 5    | Endpoint API, implementazione web3.py, config | 6 |
 | 6    | README completo, glossario, troubleshooting | 8 |
 
 **Legenda priorità:** Must = indispensabile per il deliverable; Should = consigliato per usabilità e manutenzione.
