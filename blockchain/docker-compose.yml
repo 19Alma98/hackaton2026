@@ -1,0 +1,27 @@
+# Placeholder per i 5 nodi della rete privata.
+# In Fase 2 qui saranno definiti i servizi con Geth/Besu, genesis e porte RPC/P2P.
+# Per ora il comando "docker compose up" è documentato nel README principale.
+
+services:
+  nodo1:
+    image: alpine:3.18
+    command: sleep infinity
+    # RPC sarà esposta su 8545 (Fase 2)
+    # ports:
+    #   - "8545:8545"
+
+  nodo2:
+    image: alpine:3.18
+    command: sleep infinity
+
+  nodo3:
+    image: alpine:3.18
+    command: sleep infinity
+
+  nodo4:
+    image: alpine:3.18
+    command: sleep infinity
+
+  nodo5:
+    image: alpine:3.18
+    command: sleep infinity
