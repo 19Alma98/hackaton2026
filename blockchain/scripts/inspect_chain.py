@@ -15,18 +15,42 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 
-KNOWN_ACCOUNTS = {
+# Fallback se test_accounts.json non è disponibile
+KNOWN_ACCOUNTS_DEFAULT = {
     "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": "Nodo 1 (Ale M)",
     "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "Nodo 2 (Ale Z)",
     "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": "Nodo 3 (Robert)",
-    "0x90F79bf6EB2c4f870365E785982E1f101E93b906": "Ente (Wallet Emissione)",
-    "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65": "Nodo 5",
 }
+
+
+def _load_known_accounts() -> dict[str, str]:
+    """Carica gli account da blockchain/wallets/test_accounts.json se esiste."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # blockchain/scripts -> blockchain/wallets/test_accounts.json
+    wallets_dir = os.path.join(os.path.dirname(script_dir), "wallets")
+    path = os.path.join(wallets_dir, "test_accounts.json")
+    if not os.path.isfile(path):
+        return dict(KNOWN_ACCOUNTS_DEFAULT)
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        accounts = data.get("accounts") or []
+        return {a["address"]: a.get("name", a["address"]) for a in accounts if a.get("address")}
+    except (json.JSONDecodeError, KeyError):
+        return dict(KNOWN_ACCOUNTS_DEFAULT)
+
+
+def get_known_accounts() -> dict[str, str]:
+    """Lazy load degli account (per evitare dipendenze da path al import)."""
+    if not hasattr(get_known_accounts, "_cache"):
+        get_known_accounts._cache = _load_known_accounts()  # type: ignore[attr-defined]
+    return get_known_accounts._cache  # type: ignore[attr-defined]
 
 ERC721_ABI_FRAGMENTS = [
     {"constant": True, "inputs": [], "name": "name",
@@ -78,7 +102,7 @@ def wei_to_eth(wei: int) -> float:
 
 
 def label(address: str) -> str:
-    for known, name in KNOWN_ACCOUNTS.items():
+    for known, name in get_known_accounts().items():
         if known.lower() == address.lower():
             return name
     return address
@@ -116,21 +140,58 @@ def print_header(title: str) -> None:
     print(SEP)
 
 
-def fetch_balances(rpc_url: str) -> None:
+def collect_addresses_from_chain(rpc_url: str, quiet: bool = False) -> list[str]:
+    """Deriva dalla chain tutti gli indirizzi che compaiono in transazioni o deploy."""
+    block_hex = rpc(rpc_url, "eth_blockNumber")["result"]
+    latest = hex_to_int(block_hex)
+    seen: set[str] = set()
+    progress_step = max(1, latest // 20) if latest else 1
+    if not quiet:
+        print(f"\n  Raccolta indirizzi dalla chain (blocchi 0..{latest}) ", end="", flush=True)
+    for b in range(latest + 1):
+        if not quiet and b % progress_step == 0:
+            print(".", end="", flush=True)
+        block_resp = rpc(rpc_url, "eth_getBlockByNumber", [hex(b), True])
+        block = block_resp.get("result")
+        if not block:
+            continue
+        for tx in block.get("transactions", []):
+            from_addr = tx.get("from")
+            to_addr = tx.get("to")
+            if from_addr:
+                seen.add(from_addr)
+            if to_addr:
+                seen.add(to_addr)
+            if to_addr is None:
+                receipt_resp = rpc(rpc_url, "eth_getTransactionReceipt", [tx["hash"]])
+                contract_addr = (receipt_resp.get("result") or {}).get("contractAddress")
+                if contract_addr:
+                    seen.add(contract_addr)
+    if not quiet:
+        print(" fatto!")
+    return sorted(seen)
+
+
+def fetch_balances(rpc_url: str, addresses: list[str] | None = None) -> None:
+    """Mostra i bilanci ETH. Se addresses è None, li deriva dalla chain (transazioni e deploy)."""
+    if addresses is None:
+        addresses = collect_addresses_from_chain(rpc_url, quiet=False)
+    if not addresses:
+        addresses = list(get_known_accounts().keys())
     print_header("BILANCI ETH")
-    fmt = "  {:<22} {:<44} {:>14} ETH"
-    print(fmt.format("Account", "Indirizzo", "Bilancio"))
-    print("  " + "-" * 66)
-    for addr, name in KNOWN_ACCOUNTS.items():
+    fmt = "  {:<44} {:>14} ETH"
+    print(fmt.format("Indirizzo", "Bilancio"))
+    print("  " + "-" * 60)
+    for addr in addresses:
         try:
             resp = rpc(rpc_url, "eth_getBalance", [addr, "latest"])
             bal = wei_to_eth(hex_to_int(resp["result"]))
-            print(fmt.format(name, addr, f"{bal:,.4f}"))
+            print(fmt.format(addr, f"{bal:,.4f}"))
         except Exception:
-            print(fmt.format(name, addr, "N/A"))
+            print(fmt.format(addr, "N/A"))
 
 
-def scan_blocks(rpc_url: str) -> tuple[list[ContractInfo], list[TxInfo]]:
+def scan_blocks(rpc_url: str) -> tuple[list[ContractInfo], list[TxInfo], list[str]]:
     block_hex = rpc(rpc_url, "eth_blockNumber")["result"]
     latest = hex_to_int(block_hex)
     print(f"\n  Blocco corrente: {latest}")
@@ -138,6 +199,7 @@ def scan_blocks(rpc_url: str) -> tuple[list[ContractInfo], list[TxInfo]]:
 
     contracts: list[ContractInfo] = []
     txs: list[TxInfo] = []
+    addresses_seen: set[str] = set()
     progress_step = max(1, latest // 20)
 
     for b in range(latest + 1):
@@ -154,19 +216,27 @@ def scan_blocks(rpc_url: str) -> tuple[list[ContractInfo], list[TxInfo]]:
             if not receipt:
                 continue
 
+            from_addr = tx["from"]
+            to_addr = tx.get("to")
+            contract_addr = receipt.get("contractAddress", "")
+            addresses_seen.add(from_addr)
+            if to_addr:
+                addresses_seen.add(to_addr)
+            if contract_addr:
+                addresses_seen.add(contract_addr)
+
             gas_used = hex_to_int(receipt.get("gasUsed", "0x0"))
             status = hex_to_int(receipt.get("status", "0x1"))
             logs = receipt.get("logs", [])
 
-            is_deploy = tx.get("to") is None
+            is_deploy = to_addr is None
             if is_deploy:
-                contract_addr = receipt.get("contractAddress", "")
                 code_resp = rpc(rpc_url, "eth_getCode", [contract_addr, "latest"])
                 code_hex = code_resp.get("result", "0x")
                 code_size = max(0, (len(code_hex) - 2) // 2)
                 contracts.append(ContractInfo(
                     address=contract_addr,
-                    deployer=tx["from"],
+                    deployer=from_addr,
                     block=b,
                     code_size=code_size,
                 ))
@@ -174,8 +244,8 @@ def scan_blocks(rpc_url: str) -> tuple[list[ContractInfo], list[TxInfo]]:
             txs.append(TxInfo(
                 block=b,
                 tx_hash=tx_hash,
-                from_addr=tx["from"],
-                to_addr=tx.get("to") or receipt.get("contractAddress", ""),
+                from_addr=from_addr,
+                to_addr=to_addr or contract_addr,
                 value_wei=hex_to_int(tx.get("value", "0x0")),
                 gas_used=gas_used,
                 status=status,
@@ -184,7 +254,7 @@ def scan_blocks(rpc_url: str) -> tuple[list[ContractInfo], list[TxInfo]]:
             ))
 
     print(" fatto!")
-    return contracts, txs
+    return contracts, txs, sorted(addresses_seen)
 
 
 def enrich_contracts(rpc_url: str, contracts: list[ContractInfo]) -> None:
@@ -388,14 +458,14 @@ def main() -> None:
         print(f"  Dettaglio: {e}")
         sys.exit(1)
 
-    fetch_balances(args.rpc)
-
     if args.balances_only:
+        fetch_balances(args.rpc)
         print()
         return
 
     print_header("SCANSIONE BLOCKCHAIN")
-    contracts, txs = scan_blocks(args.rpc)
+    contracts, txs, addresses = scan_blocks(args.rpc)
+    fetch_balances(args.rpc, addresses=addresses)
 
     if contracts:
         print("\n  Analisi token in corso...", end=" ", flush=True)
