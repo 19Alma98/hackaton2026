@@ -19,11 +19,34 @@ class Settings(BaseSettings):
     nft_contract_address: str = ""
     marketplace_contract_address: str = ""
     deployments_dir: str = "../contracts/deployments"
+    contracts_dir: str = "../contracts"
     wallets_dir: str = "../blockchain/wallets"
+    deployer_private_key: str = ""
     cors_origins: str = "*"
+    default_signer_private_key: str = ""
+    custodial_keys_json: str = "{}"
+    receipt_timeout_seconds: int = 30
+    receipt_poll_interval_seconds: float = 1.0
 
     def get_cors_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]
+
+    def get_custodial_keys(self) -> dict[str, str]:
+        """Return an address->private_key mapping loaded from env JSON."""
+        try:
+            raw = json.loads(self.custodial_keys_json)
+        except json.JSONDecodeError:
+            return {}
+
+        if not isinstance(raw, dict):
+            return {}
+
+        out: dict[str, str] = {}
+        for address, key in raw.items():
+            if not isinstance(address, str) or not isinstance(key, str):
+                continue
+            out[address.lower()] = key
+        return out
 
     def load_deployment(self, filename: str) -> dict[str, Any] | None:
         """Load a deployment artifact JSON (address + ABI) from deployments_dir."""

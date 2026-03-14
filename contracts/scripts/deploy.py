@@ -28,8 +28,8 @@ from pathlib import Path
 from ape import accounts, chain, project
 
 
-TOKEN_NAME = "Hacka"
-TOKEN_SYMBOL = "HAK"
+TOKEN_NAME = os.environ.get("TOKEN_NAME", "Hacka")
+TOKEN_SYMBOL = os.environ.get("TOKEN_SYMBOL", "HAK")
 EXPECTED_CHAIN_ID = 1337
 
 
