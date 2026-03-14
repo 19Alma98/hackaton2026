@@ -25,7 +25,7 @@ from eth_keys import keys as eth_keys
 Account.enable_unaudited_hdwallet_features()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent  # blockchain/
-NUM_NODES = 5
+NUM_NODES = 3
 NODE_NAMES = [f"nodo{i}" for i in range(1, NUM_NODES + 1)]
 
 DEFAULT_MNEMONIC = (
