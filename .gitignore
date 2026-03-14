@@ -3,8 +3,6 @@
 
 *.spec
 
-*.sol
-
 *.hbs
 
 contracts/lib/
