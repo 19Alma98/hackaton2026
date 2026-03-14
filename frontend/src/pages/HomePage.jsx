@@ -1,24 +1,14 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatEther } from 'ethers'
 import { useWeb3 } from '../hooks/useWeb3'
 import { EVENTS } from '../mock'
 import { shortAddress, formatEventDate, formatEth } from '../utils/format'
 import { stringToGradient } from '../utils/colors'
 
 export default function HomePage() {
-  const { address, provider } = useWeb3()
-  const [balance, setBalance] = useState(null)
+  const { address } = useWeb3()
   const navigate = useNavigate()
 
   const [hero, ...rest] = EVENTS
-
-  useEffect(() => {
-    if (!provider || !address) return
-    provider.getBalance(address).then((b) => {
-      setBalance(parseFloat(formatEther(b)).toFixed(4))
-    }).catch(() => setBalance('—'))
-  }, [provider, address])
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -31,12 +21,6 @@ export default function HomePage() {
             <p className="text-xs text-gray-500">Connesso come</p>
             <p className="text-sm font-mono font-medium text-white">{shortAddress(address)}</p>
           </div>
-        </div>
-        <div className="text-right leading-tight">
-          <p className="text-xs text-gray-500">Saldo</p>
-          <p className="text-sm font-semibold text-violet-300">
-            {balance !== null ? `${balance} ETH` : '—'}
-          </p>
         </div>
       </header>
 

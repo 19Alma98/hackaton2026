@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatEther } from 'ethers'
 import { useWeb3 } from '../hooks/useWeb3'
 import { MY_TICKETS } from '../mock'
 import { stringToGradient } from '../utils/colors'
@@ -11,20 +10,12 @@ const MOCK_STATS = {
 }
 
 export default function ProfilePage() {
-  const { address, provider, disconnect } = useWeb3()
+  const { address, logout } = useWeb3()
   const navigate = useNavigate()
-  const [balance, setBalance] = useState(null)
   const [copied, setCopied] = useState(false)
 
   const owned = MY_TICKETS.filter((t) => t.status === 'owned').length
   const gradient = stringToGradient(address)
-
-  useEffect(() => {
-    if (!provider || !address) return
-    provider.getBalance(address).then((b) => {
-      setBalance(parseFloat(formatEther(b)).toFixed(4))
-    }).catch(() => setBalance('—'))
-  }, [provider, address])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(address)
@@ -32,8 +23,8 @@ export default function ProfilePage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleDisconnect = () => {
-    disconnect()
+  const handleLogout = () => {
+    logout()
     navigate('/', { replace: true })
   }
 
@@ -51,7 +42,7 @@ export default function ProfilePage() {
 
         {/* Indirizzo + copia */}
         <div className="flex flex-col items-center gap-1.5">
-          <p className="text-xs text-gray-500 uppercase tracking-widest">Wallet connesso</p>
+          <p className="text-xs text-gray-500 uppercase tracking-widest">Indirizzo wallet</p>
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-xl px-3 py-2 transition-colors"
@@ -67,16 +58,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Balance */}
-      <div className="px-4 py-4 border-b border-gray-800">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">Saldo disponibile</p>
-          <p className="text-xl font-bold text-violet-300">
-            {balance !== null ? `${balance} ETH` : '—'}
-          </p>
-        </div>
-      </div>
-
       {/* Statistiche */}
       <div className="px-4 py-5 border-b border-gray-800">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">Statistiche</p>
@@ -87,27 +68,19 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Info rete */}
-      <div className="px-4 py-4 border-b border-gray-800 space-y-2.5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Rete</p>
-        <InfoRow label="Chain ID" value={import.meta.env.VITE_CHAIN_ID ?? '1337'} />
-        <InfoRow label="RPC" value={import.meta.env.VITE_RPC_URL ?? 'localhost:8545'} />
-        <InfoRow label="Rete" value="Mintpass Private" />
-      </div>
-
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Disconnetti */}
+      {/* Esci */}
       <div className="px-4 py-6">
         <button
-          onClick={handleDisconnect}
+          onClick={handleLogout}
           className="w-full border border-rose-800 hover:bg-rose-950/40 text-rose-400 font-semibold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
           </svg>
-          Disconnetti wallet
+          Esci
         </button>
       </div>
 
@@ -122,15 +95,6 @@ function StatCard({ value, label, color }) {
     <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 py-4 flex flex-col items-center gap-1">
       <span className={`text-3xl font-bold ${color}`}>{value}</span>
       <span className="text-[10px] text-gray-500 text-center leading-tight">{label}</span>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-mono text-gray-300 truncate max-w-[55%] text-right">{value}</span>
     </div>
   )
 }

@@ -47,7 +47,7 @@ services:
       --nodiscover
       --syncmode full
     healthcheck:
-      test: ["CMD-SHELL", "geth attach http://localhost:8545 --exec eth.blockNumber || exit 1"]
+      test: ["CMD-SHELL", "geth --exec eth.blockNumber attach http://localhost:8545 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
