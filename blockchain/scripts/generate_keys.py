@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Generate deterministic node keys, keystores, genesis.json,
-config.toml and static-nodes.json for a 5-node Geth Clique
-PoA network.
+config.toml and static-nodes.json for a Geth Clique PoA network,
+plus a dedicated "ente" (organization) wallet for contract deploy
+and ticket minting.
 
 Usage (single host / Docker):
     uv run python blockchain/scripts/generate_keys.py
 
-Usage (LAN – 5 separate PCs):
+Usage (LAN – separate PCs):
     uv run python blockchain/scripts/generate_keys.py \
-        --hosts "192.168.1.10,192.168.1.11,192.168.1.12,192.168.1.13,192.168.1.14"
+        --hosts "192.168.1.10,192.168.1.11,192.168.1.12"
+
+Skip ente wallet generation:
+    uv run python blockchain/scripts/generate_keys.py --no-ente
 
 All outputs are written under blockchain/.
 """
@@ -27,6 +31,7 @@ Account.enable_unaudited_hdwallet_features()
 PROJECT_ROOT = Path(__file__).resolve().parent.parent  # blockchain/
 NUM_NODES = 3
 NODE_NAMES = [f"nodo{i}" for i in range(1, NUM_NODES + 1)]
+ENTE_INDEX = NUM_NODES  # mnemonic derivation index for the ente wallet
 
 DEFAULT_MNEMONIC = (
     "test test test test test test test test test test test junk"
@@ -88,8 +93,22 @@ def build_extradata(addresses: list[str]) -> str:
 
 
 def build_genesis(
-    accounts: list[dict], chain_id: int, period: int
+    accounts: list[dict],
+    chain_id: int,
+    period: int,
+    extra_funded: list[dict] | None = None,
 ) -> dict:
+    """Build genesis.json.
+
+    *accounts* are the Clique signer/validator nodes (included in
+    extradata **and** alloc).  *extra_funded* are additional accounts
+    that receive a pre-fund allocation but are **not** validators
+    (e.g. the ente wallet).
+    """
+    alloc = {a["address"].lower(): {"balance": PREFUND_WEI} for a in accounts}
+    for a in extra_funded or []:
+        alloc[a["address"].lower()] = {"balance": PREFUND_WEI}
+
     genesis = {
         "config": {
             "chainId": chain_id,
@@ -108,9 +127,7 @@ def build_genesis(
         "difficulty": "1",
         "gasLimit": GAS_LIMIT,
         "extradata": build_extradata([a["address"] for a in accounts]),
-        "alloc": {
-            a["address"].lower(): {"balance": PREFUND_WEI} for a in accounts
-        },
+        "alloc": alloc,
     }
     return genesis
 
@@ -135,6 +152,30 @@ def build_static_nodes(
     return enodes
 
 
+def write_ente_wallet(acct: dict, password: str) -> Path:
+    """Write the ente wallet keystore and a summary JSON file.
+
+    Returns the path to the summary JSON (blockchain/ente_wallet.json).
+    """
+    ente_dir = PROJECT_ROOT / "nodes" / "ente" / "keystore"
+    ente_dir.mkdir(parents=True, exist_ok=True)
+
+    encrypted = Account.encrypt(acct["private_key"], password)
+    addr_lower = acct["address"].lower().replace("0x", "")
+    ks_path = ente_dir / f"UTC--ente--{addr_lower}"
+    ks_path.write_text(json.dumps(encrypted, indent=2))
+
+    summary_path = PROJECT_ROOT / "ente_wallet.json"
+    summary_path.write_text(json.dumps({
+        "role": "ente",
+        "address": acct["address"],
+        "private_key": acct["private_key"],
+        "keystore": str(ks_path),
+        "derivation_index": acct["index"],
+    }, indent=2) + "\n")
+    return summary_path
+
+
 def build_config_toml(enodes: list[str]) -> str:
     """Build a Geth config.toml with P2P static nodes."""
     quoted = ",\n    ".join(f'"{e}"' for e in enodes)
@@ -145,7 +186,10 @@ def build_config_toml(enodes: list[str]) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "--mnemonic",
         default=DEFAULT_MNEMONIC,
@@ -160,10 +204,15 @@ def main() -> None:
         "--hosts",
         default=None,
         help=(
-            "Comma-separated list of LAN IPs/hostnames for the 5 nodes "
+            "Comma-separated list of LAN IPs/hostnames for the nodes "
             "(e.g. '192.168.1.10,192.168.1.11,...').  When omitted, Docker "
-            "service names (nodo1-nodo5) are used."
+            "service names (nodo1..nodoN) are used."
         ),
+    )
+    parser.add_argument(
+        "--no-ente",
+        action="store_true",
+        help="Skip ente (organization) wallet generation.",
     )
     args = parser.parse_args()
 
@@ -185,18 +234,28 @@ def main() -> None:
         print(f"Hosts    : Docker service names ({', '.join(NODE_NAMES)})")
     print()
 
-    accounts = derive_accounts(args.mnemonic, NUM_NODES)
+    node_accounts = derive_accounts(args.mnemonic, NUM_NODES)
 
     # -- Node directories (keystores + nodekeys) --
-    write_node_dirs(accounts, args.password)
+    write_node_dirs(node_accounts, args.password)
+
+    # -- Ente wallet (mnemonic index = NUM_NODES, not a validator) --
+    ente_account = None
+    if not args.no_ente:
+        ente_accounts = derive_accounts(args.mnemonic, ENTE_INDEX + 1)
+        ente_account = ente_accounts[ENTE_INDEX]
+        write_ente_wallet(ente_account, args.password)
 
     # -- genesis.json --
-    genesis = build_genesis(accounts, args.chain_id, args.period)
+    extra_funded = [ente_account] if ente_account else []
+    genesis = build_genesis(
+        node_accounts, args.chain_id, args.period, extra_funded=extra_funded,
+    )
     genesis_path = PROJECT_ROOT / "genesis.json"
     genesis_path.write_text(json.dumps(genesis, indent=2) + "\n")
 
     # -- static-nodes.json (kept for reference) --
-    static_nodes = build_static_nodes(accounts, hosts)
+    static_nodes = build_static_nodes(node_accounts, hosts)
     static_path = PROJECT_ROOT / "static-nodes.json"
     static_path.write_text(json.dumps(static_nodes, indent=2) + "\n")
 
@@ -212,7 +271,7 @@ def main() -> None:
     # -- summary --
     targets = hosts if hosts else NODE_NAMES
     print("=== Generated node keys ===")
-    for acct in accounts:
+    for acct in node_accounts:
         pubhex = acct["public_key"]
         if pubhex.startswith("0x"):
             pubhex = pubhex[2:]
@@ -222,12 +281,23 @@ def main() -> None:
             f"  Node {node_num}: {acct['address']}"
             f"  enode://{pubhex[:16]}...@{host}:30303"
         )
+
+    if ente_account:
+        ente_path = PROJECT_ROOT / "ente_wallet.json"
+        print()
+        print("=== Ente wallet (organization – deploy/mint) ===")
+        print(f"  Address: {ente_account['address']}")
+        print(f"  Index  : {ente_account['index']} (not a validator)")
+        print(f"  File   : {ente_path}")
+
     print()
     print(f"genesis.json       -> {genesis_path}")
     print(f"config.toml        -> {toml_path}")
     print(f"static-nodes.json  -> {static_path}")
     print(f"password.txt       -> {pw_path}")
     print(f"Node dirs          -> {PROJECT_ROOT / 'nodes/'}")
+    if ente_account:
+        print(f"Ente wallet        -> {PROJECT_ROOT / 'ente_wallet.json'}")
     print()
     print("Next: cd blockchain && docker compose up -d")
 

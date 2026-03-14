@@ -110,6 +110,95 @@ uv run ape accounts import my-deployer
 DEPLOYER_ALIAS=my-deployer uv run ape run deploy --network ethereum:local:node
 ```
 
+## Wallet Ente (Emissione Biglietti)
+
+Il **wallet ente** è un account dedicato all'organizzazione che emette i biglietti (deploy dei contratti e mint). È separato dai nodi validatori per tracciabilità e sicurezza.
+
+### Come viene generato
+
+Il wallet ente è derivato deterministicamente dalla stessa mnemonic BIP-39 usata per i nodi, all'indice `NUM_NODES` (indice 3). Non è un validatore Clique, ma riceve un pre-fund di 10 000 ETH nel genesis.
+
+```bash
+# Genera chiavi nodi + wallet ente
+uv run python blockchain/scripts/generate_keys.py
+```
+
+Output:
+- `blockchain/ente_wallet.json` — indirizzo, chiave privata, path keystore
+- `blockchain/nodes/ente/keystore/` — keystore cifrato
+- `blockchain/genesis.json` — aggiornato con l'alloc per l'ente
+
+Per saltare la generazione del wallet ente: `--no-ente`.
+
+### Finanziamento
+
+**Opzione A – Pre-fund in genesis (default)**
+
+Se `generate_keys.py` è stato eseguito con l'ente abilitato (default), il wallet è già finanziato nel genesis con 10 000 ETH.
+
+**Opzione B – Trasferimento post-genesis**
+
+Se il genesis era già inizializzato senza l'ente, o per ricaricare il wallet:
+
+```bash
+# Default: trasferisce 100 ETH da node 1 al wallet ente
+uv run python blockchain/scripts/fund_wallet.py
+
+# Parametri espliciti
+uv run python blockchain/scripts/fund_wallet.py \
+    --rpc http://192.168.2.208:8545 \
+    --from-key 0xac0974... \
+    --to 0x90F79bf6... \
+    --amount 500
+```
+
+| Parametro | Descrizione | Default |
+|---|---|---|
+| `--rpc` | URL RPC del nodo Geth | `http://localhost:8545` |
+| `--from-key` | Chiave privata del mittente (hex) | Chiave di node 1 |
+| `--to` | Indirizzo destinatario | Indirizzo ente da `ente_wallet.json` |
+| `--amount` | ETH da trasferire | 100 |
+
+### Importare il wallet ente in Ape
+
+Per usare il wallet ente come deployer, importalo nel keyring di Ape:
+
+```bash
+cd contracts
+uv run ape run import_ente
+```
+
+Lo script legge la chiave privata da `blockchain/ente_wallet.json` e la importa con alias `ente`. Verrà richiesta una passphrase per cifrare la chiave localmente.
+
+In alternativa, importa manualmente:
+
+```bash
+uv run ape accounts import ente
+# incolla la chiave privata dall'ente_wallet.json
+```
+
+### Usare il wallet ente per il deploy
+
+Dopo l'import, il wallet ente è il default se `DEPLOYER_ALIAS` non è impostato:
+
+```bash
+cd contracts
+uv run ape run deploy --network ethereum:local:node
+```
+
+Oppure esplicitamente:
+
+```bash
+DEPLOYER_ALIAS=ente uv run ape run deploy --network ethereum:local:node
+```
+
+### Riprodurre in altri ambienti
+
+1. Eseguire `generate_keys.py` con la stessa mnemonic (default: `test test ... junk`)
+2. Il wallet ente sarà sempre lo stesso indirizzo (derivazione deterministica, indice 3)
+3. Importare in Ape con `import_ente.py`
+4. Se il genesis è già stato inizializzato, usare `fund_wallet.py` per finanziare
+
 ## Output del deploy
 
 Lo script genera due file nella cartella `deployments/`:

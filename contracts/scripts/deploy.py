@@ -14,6 +14,9 @@ Usage (private Geth network on a remote LAN node):
 Set DEPLOYER_ALIAS to use a named account (imported via `ape accounts import`):
     DEPLOYER_ALIAS=my-deployer ape run deploy --network ethereum:local:node
 
+If DEPLOYER_ALIAS is not set, the script tries the 'ente' alias (the
+dedicated organization wallet) before falling back to test_accounts[0].
+
 Set INITIAL_MINT to mint sample tickets on deploy:
     INITIAL_MINT=5 ape run deploy
 """
@@ -71,8 +74,12 @@ def main():
     if deployer_alias:
         deployer = accounts.load(deployer_alias)
     else:
-        deployer = accounts.test_accounts[0]
-        print(f"No DEPLOYER_ALIAS set, using test account: {deployer.address}")
+        try:
+            deployer = accounts.load("ente")
+            print(f"No DEPLOYER_ALIAS set, loaded 'ente' wallet: {deployer.address}")
+        except Exception:
+            deployer = accounts.test_accounts[0]
+            print(f"No DEPLOYER_ALIAS set, using test account: {deployer.address}")
 
     print(f"Deploying {TOKEN_NAME} ({TOKEN_SYMBOL}) from {deployer.address} ...")
     nft = deployer.deploy(project.TicketNFT, TOKEN_NAME, TOKEN_SYMBOL)
