@@ -5,6 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10.14"
 dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "web3",
+    "pydantic-settings",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+contracts = [
     "eth-account>=0.13.7",
     "eth-ape",
     "ape-solidity",
