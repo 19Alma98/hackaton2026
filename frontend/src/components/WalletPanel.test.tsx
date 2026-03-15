@@ -28,42 +28,50 @@ describe('WalletPanel', () => {
   })
 
   it('mostra il nome utente', () => {
-    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onLogout={vi.fn()} />)
+    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={vi.fn()} />)
     expect(screen.getByText('Alice')).toBeInTheDocument()
   })
 
   it('mostra indirizzo troncato via AddressChip', () => {
-    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onLogout={vi.fn()} />)
+    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={vi.fn()} />)
     expect(screen.getByText('0xalic...ef12')).toBeInTheDocument()
   })
 
   it('mostra il balance ETH', () => {
-    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onLogout={vi.fn()} />)
+    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={vi.fn()} />)
     expect(screen.getByText(/2\.0 ETH/)).toBeInTheDocument()
   })
 
   it('mostra TicketCard per ogni token', () => {
-    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onLogout={vi.fn()} />)
+    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={vi.fn()} />)
     expect(screen.getByText('MyRealBigliettoh')).toBeInTheDocument()
   })
 
   it('empty state quando tokens è vuoto', () => {
     const walletNoTokens: WalletInfo = { ...mockWallet, tokens: [] }
-    render(<WalletPanel wallet={walletNoTokens} onTokenClick={vi.fn()} onLogout={vi.fn()} />)
+    render(<WalletPanel wallet={walletNoTokens} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={vi.fn()} />)
     expect(screen.getByText(/Nessun biglietto ancora/i)).toBeInTheDocument()
   })
 
   it('click su ticket chiama onTokenClick con id corretto', () => {
     const onTokenClick = vi.fn()
-    render(<WalletPanel wallet={mockWallet} onTokenClick={onTokenClick} onLogout={vi.fn()} />)
+    render(<WalletPanel wallet={mockWallet} onTokenClick={onTokenClick} onSell={vi.fn()} onLogout={vi.fn()} />)
     fireEvent.click(screen.getByText('#10'))
     expect(onTokenClick).toHaveBeenCalledWith(10)
   })
 
   it('click su "Cambia identità" chiama onLogout', () => {
     const onLogout = vi.fn()
-    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onLogout={onLogout} />)
+    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={onLogout} />)
     fireEvent.click(screen.getByRole('button', { name: /Cambia identità/i }))
     expect(onLogout).toHaveBeenCalledTimes(1)
+  })
+
+  it('click su Vendi chiama onSell con tokenId corretto', () => {
+    const onSell = vi.fn()
+    render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={onSell} onLogout={vi.fn()} />)
+    const vendiButtons = screen.getAllByRole('button', { name: /Vendi/i })
+    fireEvent.click(vendiButtons[0])
+    expect(onSell).toHaveBeenCalledWith(10)
   })
 })

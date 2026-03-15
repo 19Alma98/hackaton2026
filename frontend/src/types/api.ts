@@ -75,6 +75,20 @@ export interface MarketplaceBuyRequest {
   wait_for_receipt?: boolean
 }
 
+export interface NftApproveRequest {
+  owner_address: string
+  approved_address: string
+  token_id: number
+  wait_for_receipt?: boolean
+}
+
+export interface MarketplaceListRequest {
+  seller_address: string
+  token_id: number
+  price_wei: string
+  wait_for_receipt?: boolean
+}
+
 // --- Events (per TokenHistoryPage) ---
 
 export interface EventListed {

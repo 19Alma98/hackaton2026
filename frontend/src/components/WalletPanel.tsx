@@ -7,10 +7,12 @@ import { TicketCard } from './TicketCard'
 interface WalletPanelProps {
   wallet: WalletInfo
   onTokenClick: (tokenId: number) => void
+  onSell: (tokenId: number) => void
   onLogout: () => void
+  listedTokenIds?: readonly number[]
 }
 
-export function WalletPanel({ wallet, onTokenClick, onLogout }: WalletPanelProps) {
+export function WalletPanel({ wallet, onTokenClick, onSell, onLogout, listedTokenIds = [] }: WalletPanelProps) {
   const initial =
     wallet.name.length > 0
       ? wallet.name.charAt(0).toUpperCase()
@@ -50,6 +52,8 @@ export function WalletPanel({ wallet, onTokenClick, onLogout }: WalletPanelProps
                 key={token.contract_address}
                 tokenBalance={token}
                 onTokenClick={onTokenClick}
+                onSell={onSell}
+                listedTokenIds={listedTokenIds}
               />
             ))}
           </div>

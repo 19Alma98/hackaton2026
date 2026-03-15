@@ -12,6 +12,14 @@ vi.mock('@/hooks/useBuyTicket', () => ({
   useBuyTicket: vi.fn(),
 }))
 
+vi.mock('@/hooks/useConfig', () => ({
+  useConfig: vi.fn(),
+}))
+
+vi.mock('@/hooks/useListTicket', () => ({
+  useListTicket: vi.fn(),
+}))
+
 vi.mock('@/api/axiosInstance', () => ({
   axiosInstance: {
     get: vi.fn(),
@@ -29,6 +37,8 @@ vi.mock('react-router-dom', async () => {
 
 import { useMarketplace } from '@/hooks/useMarketplace'
 import { useBuyTicket } from '@/hooks/useBuyTicket'
+import { useConfig } from '@/hooks/useConfig'
+import { useListTicket } from '@/hooks/useListTicket'
 import { useNavigate } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
 import { axiosInstance } from '@/api/axiosInstance'
@@ -66,6 +76,33 @@ const mockBuyState = {
   reset: vi.fn(),
 }
 
+const mockListState = {
+  state: {
+    status: 'idle' as const,
+    tokenId: null,
+    priceWei: null,
+    approveTxResult: null,
+    listTxResult: null,
+    error: null,
+  },
+  startList: vi.fn(),
+  setPrice: vi.fn(),
+  confirmList: vi.fn().mockResolvedValue(undefined),
+  cancel: vi.fn(),
+  reset: vi.fn(),
+}
+
+const mockConfig = {
+  config: {
+    chain_id: 1337,
+    rpc_url: 'http://localhost:8545',
+    nft_contract_address: '0xnft',
+    marketplace_contract_address: '0xmarketplace',
+  },
+  loading: false,
+  error: null,
+}
+
 function renderWithAuth(ui: ReactNode) {
   return render(
     <AuthProvider>
@@ -96,6 +133,8 @@ describe('DashboardPage', () => {
       refetch: vi.fn(),
     })
     vi.mocked(useBuyTicket).mockReturnValue(mockBuyState)
+    vi.mocked(useConfig).mockReturnValue(mockConfig)
+    vi.mocked(useListTicket).mockReturnValue(mockListState)
   })
 
   it('mostra il nome utente corrente', () => {
@@ -213,5 +252,41 @@ describe('DashboardPage', () => {
     vi.mocked(axiosInstance.get).mockResolvedValue({ data: [mockWallet] })
     renderAuthenticated()
     expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('useConfig viene chiamato', () => {
+    renderAuthenticated()
+    expect(vi.mocked(useConfig)).toHaveBeenCalled()
+  })
+
+  it('click Vendi su un token apre la BottomSheet listing (startList chiamato)', () => {
+    const startList = vi.fn()
+    vi.mocked(useListTicket).mockReturnValue({ ...mockListState, startList })
+    renderAuthenticated()
+    const vendiButtons = screen.getAllByRole('button', { name: /Vendi/i })
+    fireEvent.click(vendiButtons[0])
+    expect(startList).toHaveBeenCalledWith(99)
+  })
+
+  it('BottomSheet listing mostra PriceInputSheet quando status è price-input', () => {
+    vi.mocked(useListTicket).mockReturnValue({
+      ...mockListState,
+      state: {
+        ...mockListState.state,
+        status: 'price-input',
+        tokenId: 99,
+      },
+    })
+    renderAuthenticated()
+    expect(screen.getByText(/Metti in vendita #99/i)).toBeInTheDocument()
+  })
+
+  it('startList viene chiamato con il tokenId corretto al click di Vendi', () => {
+    const startList = vi.fn()
+    vi.mocked(useListTicket).mockReturnValue({ ...mockListState, startList })
+    renderAuthenticated()
+    const vendiButtons = screen.getAllByRole('button', { name: /Vendi/i })
+    fireEvent.click(vendiButtons[0])
+    expect(startList).toHaveBeenCalledWith(99)
   })
 })
