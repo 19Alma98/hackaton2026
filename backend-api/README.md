@@ -97,30 +97,6 @@ Restituisce gli ultimi N blocchi della chain.
 
 ### Events
 
-#### `GET /api/events/listed`
-
-Restituisce tutti gli eventi `Listed` emessi dal contratto Marketplace (biglietti messi in vendita).
-
-**Query parameters:**
-
-| Parametro | Tipo | Default | Descrizione |
-|-----------|------|---------|-------------|
-| `from_block` | int | 0 | Blocco di partenza per la scansione eventi |
-
-**Risposta:**
-
-```json
-[
-  {
-    "seller": "0xf39Fd6e5...",
-    "token_id": 1,
-    "price_wei": "1000000000000000000",
-    "block_number": 150,
-    "transaction_hash": "0xabc123..."
-  }
-]
-```
-
 #### `GET /api/events/sold`
 
 Restituisce tutti gli eventi `Sold` emessi dal contratto Marketplace (biglietti venduti).
@@ -180,27 +156,6 @@ Restituisce informazioni sui wallet (balance, nonce).
 ---
 
 ### Tickets
-
-#### `GET /api/tickets/user/{address}`
-
-Restituisce tutti i biglietti (token ID) posseduti da un indirizzo.
-
-Usa le funzioni ERC721Enumerable: `balanceOf` + `tokenOfOwnerByIndex`.
-
-**Path parameters:**
-
-| Parametro | Tipo | Descrizione |
-|-----------|------|-------------|
-| `address` | string | Indirizzo Ethereum del proprietario |
-
-**Risposta:**
-
-```json
-[
-  { "token_id": 1, "owner": "0xf39Fd6e5..." },
-  { "token_id": 3, "owner": "0xf39Fd6e5..." }
-]
-```
 
 #### `GET /api/tickets/for-sale`
 
@@ -302,18 +257,6 @@ Annulla listing (`cancelListing`).
 #### `POST /api/marketplace/buy`
 Compra un token listato (`buyTicket`).
 
-#### `POST /api/marketplace/offer`
-Crea un'offerta con escrow ETH (`makeOffer`).
-
-#### `POST /api/marketplace/offer/accept`
-Accetta un'offerta (`acceptOffer`).
-
-#### `POST /api/marketplace/offer/reject`
-Rifiuta un'offerta (`rejectOffer`).
-
-#### `POST /api/marketplace/offer/withdraw`
-Ritira la propria offerta (`withdrawOffer`).
-
 ---
 
 ## Config custodial signer
@@ -385,7 +328,7 @@ curl -X POST http://localhost:8000/api/marketplace/buy \
 
 ```bash
 curl http://localhost:8000/api/transfers/tx/<TX_HASH>
-curl http://localhost:8000/api/tickets/user/0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+curl http://localhost:8000/api/tickets/for-sale
 curl "http://localhost:8000/api/events/sold?from_block=0"
 ```
 
@@ -405,8 +348,8 @@ backend-api/
     routers/
       __init__.py
       blocks.py          # GET /api/blocks/latest
-      events.py          # GET /api/events/listed, /api/events/sold
-      tickets.py         # GET /api/tickets/user/{address}, /api/tickets/for-sale
+      events.py          # GET /api/events/sold
+      tickets.py         # GET /api/tickets/for-sale, POST /api/tickets/mint
       transfers.py       # POST /api/transfers/*
       marketplace_write.py # POST /api/marketplace/*
       wallets.py         # GET /api/wallets
@@ -420,8 +363,7 @@ backend-api/
 | ID | User Story | Endpoint |
 |----|-----------|----------|
 | US 5.1.1 | Ultimi N blocchi | `GET /api/blocks/latest?count=N` |
-| US 5.1.2 | Eventi Listed / Sold | `GET /api/events/listed`, `GET /api/events/sold` |
-| US 5.1.3 | Biglietti di un utente | `GET /api/tickets/user/{address}` |
+| US 5.1.2 | Eventi Sold | `GET /api/events/sold` |
 | US 5.1.4 | Biglietti in vendita | `GET /api/tickets/for-sale` |
 | US 5.2.1 | Usa web3.py | Tutte le route usano web3.py |
 | US 5.2.2 | Singolo nodo RPC configurabile | `RPC_URL` in `.env` |

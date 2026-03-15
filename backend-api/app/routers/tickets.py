@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from collections import defaultdict
-
 from fastapi import APIRouter, HTTPException
 
 from app.config import settings
 from app.contracts import get_marketplace_contract, get_nft_contract
-from app.schemas import ListingInfo, MintRequest, MintResponse, TicketInfo, TokenHolderInfo
+from app.schemas import ListingInfo, MintRequest, MintResponse
 from app.web3_provider import w3
 
 router = APIRouter(prefix="/api/tickets", tags=["Tickets"])
@@ -30,48 +28,6 @@ def _require_marketplace():
             detail="Marketplace contract not configured. Deploy first or set env vars.",
         )
     return contract
-
-
-@router.get("/user/{address}", response_model=list[TicketInfo])
-def get_user_tickets(address: str):
-    """Return all tickets (token IDs) owned by the given address (US 5.1.3).
-
-    Uses ERC721Enumerable: balanceOf + tokenOfOwnerByIndex.
-    """
-    nft = _require_nft()
-    try:
-        checksum = w3.to_checksum_address(address)
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"Invalid address: {address}")
-
-    balance = nft.functions.balanceOf(checksum).call()
-    tickets: list[TicketInfo] = []
-    for i in range(balance):
-        token_id = nft.functions.tokenOfOwnerByIndex(checksum, i).call()
-        tickets.append(TicketInfo(token_id=token_id, owner=checksum))
-    return tickets
-
-
-@router.get("/holders", response_model=list[TokenHolderInfo])
-def get_token_holders():
-    """Return all addresses that hold at least one token, with their balance and token IDs.
-
-    Uses ERC721Enumerable: totalSupply + tokenByIndex + ownerOf.
-    """
-    nft = _require_nft()
-
-    total = nft.functions.totalSupply().call()
-    owners: dict[str, list[int]] = defaultdict(list)
-
-    for i in range(total):
-        token_id = nft.functions.tokenByIndex(i).call()
-        owner = nft.functions.ownerOf(token_id).call()
-        owners[owner].append(token_id)
-
-    return [
-        TokenHolderInfo(address=addr, balance=len(ids), token_ids=sorted(ids))
-        for addr, ids in sorted(owners.items())
-    ]
 
 
 @router.post("/mint", response_model=MintResponse)

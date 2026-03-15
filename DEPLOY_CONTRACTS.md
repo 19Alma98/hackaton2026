@@ -469,7 +469,7 @@ curl -s -X POST http://localhost:8000/api/marketplace/buy \
   -d "{\"buyer_address\":\"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC\",\"token_id\":TOKEN_ID,\"value_wei\":\"1000000000000000000\",\"wait_for_receipt\":true}"
 ```
 
-Risultato atteso: come in terminale (token mintato a Node1, listato a 1 ETH, acquistato da Node2; nuovo owner = Node2, listing non più attiva). Per verificare: `GET /api/tickets/user/0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` e `GET /api/events/sold?from_block=0`.
+Risultato atteso: come in terminale (token mintato a Node1, listato a 1 ETH, acquistato da Node2; nuovo owner = Node2, listing non più attiva). Per verificare: `GET /api/tickets/for-sale` e `GET /api/events/sold?from_block=0`.
 
 Riferimento completo API: [backend-api/README.md](backend-api/README.md).
 
