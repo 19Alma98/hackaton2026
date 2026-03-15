@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.contracts import get_marketplace_contract
-from app.schemas import EventListed, EventSold
+from app.schemas import EventSold
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
@@ -16,23 +16,6 @@ def _require_marketplace():
             detail="Marketplace contract not configured. Deploy first or set env vars.",
         )
     return contract
-
-
-@router.get("/listed", response_model=list[EventListed])
-def get_listed_events(from_block: int = Query(default=0, ge=0)):
-    """Return all Listed events emitted by the Marketplace contract (US 5.1.2)."""
-    contract = _require_marketplace()
-    logs = contract.events.Listed.get_logs(from_block=from_block)
-    return [
-        EventListed(
-            seller=log.args.seller,
-            token_id=log.args.tokenId,
-            price_wei=str(log.args.price),
-            block_number=log.blockNumber,
-            transaction_hash=log.transactionHash.hex(),
-        )
-        for log in logs
-    ]
 
 
 @router.get("/sold", response_model=list[EventSold])
