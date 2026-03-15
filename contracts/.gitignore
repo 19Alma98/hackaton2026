@@ -2,9 +2,6 @@
 .build/
 .cache/
 
-# Deployment artifacts (regenerated per-environment)
-deployments/
-
 # Python
 .env
 .venv
