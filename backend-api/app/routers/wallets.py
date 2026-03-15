@@ -6,10 +6,48 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 
 from app.config import settings
-from app.schemas import WalletInfo
+from app.contracts import get_nft_contract
+from app.schemas import TokenBalance, WalletInfo
 from app.web3_provider import w3
 
 router = APIRouter(prefix="/api/wallets", tags=["Wallets"])
+
+
+def _fetch_nft_balances(address: str) -> list[TokenBalance]:
+    """Return token holdings (Ticket NFT) for the given address."""
+    nft = get_nft_contract()
+    if nft is None:
+        return []
+    checksum = w3.to_checksum_address(address)
+    try:
+        balance = nft.functions.balanceOf(checksum).call()
+    except Exception:
+        return []
+    if balance == 0:
+        return []
+    token_ids: list[int] = []
+    for i in range(balance):
+        try:
+            token_id = nft.functions.tokenOfOwnerByIndex(checksum, i).call()
+            token_ids.append(token_id)
+        except Exception:
+            break
+    token_name = "Ticket"
+    token_symbol = "NFT"
+    try:
+        token_name = nft.functions.name().call()
+        token_symbol = nft.functions.symbol().call()
+    except Exception:
+        pass
+    return [
+        TokenBalance(
+            contract_address=nft.address,
+            name=token_name,
+            symbol=token_symbol,
+            balance=len(token_ids),
+            token_ids=token_ids,
+        )
+    ]
 
 
 def _load_known_wallets() -> list[tuple[str, str]]:
@@ -43,12 +81,14 @@ def _wallet_info(name: str, address: str) -> WalletInfo:
     checksum = w3.to_checksum_address(address)
     balance = w3.eth.get_balance(checksum)
     nonce = w3.eth.get_transaction_count(checksum)
+    tokens = _fetch_nft_balances(checksum)
     return WalletInfo(
         name=name,
         address=checksum,
         balance_wei=str(balance),
         balance_eth=float(w3.from_wei(balance, "ether")),
         nonce=nonce,
+        tokens=tokens,
     )
 
 

@@ -42,12 +42,23 @@ class ListingInfo(BaseModel):
     price_wei: str
 
 
+class TokenBalance(BaseModel):
+    """Token (ERC20 or ERC721) held by a wallet."""
+    contract_address: str
+    name: str
+    symbol: str
+    balance: int  # count for NFT, raw amount for ERC20
+    token_ids: list[int] | None = None  # for ERC721: owned token IDs
+    decimals: int | None = None  # for ERC20: token decimals
+
+
 class WalletInfo(BaseModel):
     name: str
     address: str
     balance_wei: str
     balance_eth: float
     nonce: int
+    tokens: list[TokenBalance] = []
 
 
 class AppConfig(BaseModel):
