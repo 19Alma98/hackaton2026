@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.contracts import get_marketplace_contract, get_nft_contract
 from app.schemas import (
+    ListingDetail,
     MarketplaceBuyRequest,
     MarketplaceCancelRequest,
     MarketplaceListRequest,
@@ -49,6 +50,21 @@ def get_offer(token_id: int, buyer_address: str):
 
     amount, active = marketplace.functions.getOffer(token_id, buyer).call()
     return OfferInfo(token_id=token_id, buyer=buyer, amount_wei=str(amount), active=active)
+
+
+@router.get("/listing/{token_id}", response_model=ListingDetail)
+def get_listing(token_id: int):
+    """Return on-chain listing state for a token (getListing). Use to verify a listing."""
+    marketplace = _require_marketplace()
+    if token_id < 0:
+        raise HTTPException(status_code=400, detail="token_id must be >= 0")
+    seller, price, active = marketplace.functions.getListing(token_id).call()
+    return ListingDetail(
+        token_id=token_id,
+        seller=seller,
+        price_wei=str(price),
+        active=active,
+    )
 
 
 @router.post("/list", response_model=TxResult)

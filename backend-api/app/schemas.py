@@ -42,6 +42,14 @@ class ListingInfo(BaseModel):
     price_wei: str
 
 
+class ListingDetail(BaseModel):
+    """Single listing from getListing(token_id); includes active flag."""
+    token_id: int
+    seller: str
+    price_wei: str
+    active: bool
+
+
 class TokenBalance(BaseModel):
     """Token (ERC20 or ERC721) held by a wallet."""
     contract_address: str

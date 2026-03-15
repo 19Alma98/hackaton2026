@@ -143,21 +143,17 @@ def mint_tickets(body: MintRequest):
 def get_tickets_for_sale():
     """Return all tickets currently listed for sale on the marketplace (US 5.1.4).
 
-    Scans Listed events, excludes Sold / ListingCancelled tokens, then
-    double-checks on-chain with getListing().
+    Uses on-chain state only: enumerates minted token IDs via NFT totalSupply/
+    tokenByIndex, then calls getListing() for each. This avoids depending on
+    event indexing (which can miss listings when RPC limits block range).
     """
+    nft = _require_nft()
     marketplace = _require_marketplace()
 
-    listed_logs = marketplace.events.Listed.get_logs(from_block=0)
-    sold_logs = marketplace.events.Sold.get_logs(from_block=0)
-    cancelled_logs = marketplace.events.ListingCancelled.get_logs(from_block=0)
-
-    sold_ids = {log.args.tokenId for log in sold_logs}
-    cancelled_ids = {log.args.tokenId for log in cancelled_logs}
-    candidate_ids = {log.args.tokenId for log in listed_logs} - sold_ids - cancelled_ids
-
+    total = nft.functions.totalSupply().call()
     listings: list[ListingInfo] = []
-    for token_id in sorted(candidate_ids):
+    for i in range(total):
+        token_id = nft.functions.tokenByIndex(i).call()
         seller, price, active = marketplace.functions.getListing(token_id).call()
         if active:
             listings.append(
