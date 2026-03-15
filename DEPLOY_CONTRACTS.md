@@ -134,9 +134,7 @@ uv run python blockchain/scripts/fund_wallet.py --to $(python -c "import json; p
 Oppure specificando l'indirizzo direttamente:
 
 ```bash
-uv run python blockchain/scripts/fund_wallet.py \
-    --to 0x90F79bf6EB2c4f870365E785982E1f101E93b906 \
-    --amount 500
+uv run python blockchain/scripts/fund_wallet.py --to 0x2B492Bdb41c645D5bD260d04B0EbAe78662C6019 --amount 500
 ```
 
 | Parametro | Descrizione | Default |
@@ -184,7 +182,7 @@ Verificate che l'account sia stato importato:
 uv run ape accounts list
 ```
 
-Dovreste vedere `ente` nella lista.
+Dovreste vedere `ente` nella lista. È normale vedere **solo** quell’account: `ape accounts list` mostra solo gli account importati nel keyring di Ape. I wallet dei nodi e i test account (es. in `blockchain/wallets/test_accounts.json`) non sono importati in Ape e quindi non compaiono; per il deploy serve solo l’account `ente`.
 
 ---
 
@@ -404,6 +402,76 @@ uv run ape run marketplace_demo --network ethereum:local:node
 ```
 
 La demo minta un biglietto, lo mette in vendita e lo acquista tra due wallet — confermando che token e marketplace funzionano.
+
+### Stesso flusso via API (mint → approve → list → buy)
+
+Per ottenere **lo stesso risultato** (mint, listing, acquisto) tramite le API del backend invece che con `marketplace_demo.py`:
+
+1. **Prerequisiti**
+   - Backend API in esecuzione (`cd backend-api && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`).
+   - Contratti già deployati (TicketNFT + Marketplace).
+   - Nel `.env` del backend:
+     - `DEPLOYER_PRIVATE_KEY` (per il mint; oppure passi `deployer_private_key` nel body).
+     - `CUSTODIAL_KEYS_JSON` con le chiavi private degli account che firmano: **venditore (Node1)** per approve e list, **compratore (Node2)** per buy.  
+       Esempio (indirizzi e chiavi da `blockchain/wallets/test_accounts.json` o da Ape):  
+       `CUSTODIAL_KEYS_JSON={"0x70997970c51812dc3a010c7d01b50e0d17dc79c8":"0x...","0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc":"0x..."}`
+
+2. **Da dove viene `marketplace_contract_address`**  
+   L’API restituisce `marketplace_contract_address` in `GET /api/config`. Il backend lo risolve così:
+   - **Prima** usa la variabile d’ambiente `MARKETPLACE_CONTRACT_ADDRESS` (nel `.env` dell’istanza).
+   - **Se è vuota** legge il file `marketplace.json` nella cartella dei deploy (`DEPLOYMENTS_DIR`, di default `contracts/deployments/`) e prende il campo `address`.
+
+   **Se hai due nodi (due istanze API diverse)** l’indirizzo può essere **diverso** tra un nodo e l’altro perché ogni istanza ha il proprio `.env` e/o la propria copia di `contracts/deployments/` (magari da un deploy fatto su quella macchina). Per evitare incoerenze:
+   - **Opzione consigliata:** imposta **esplicitamente** nel `.env` di **ogni** istanza backend lo stesso valore:
+     - `MARKETPLACE_CONTRACT_ADDRESS=<indirizzo del Marketplace del deploy unico>`
+     - `NFT_CONTRACT_ADDRESS=<indirizzo del TicketNFT dello stesso deploy>`
+     Gli indirizzi "giusti" sono quelli prodotti dal deploy che usi sulla chain (es. l’output di `ape run deploy` o i `contracts/deployments/*.json` del PC che ha fatto il deploy). Così `GET /api/config` restituisce lo stesso `marketplace_contract_address` (e `nft_contract_address`) da tutti i nodi.
+   - In alternativa: condividi la cartella `contracts/deployments/` (o i file `ticket_nft.json` e `marketplace.json`) su tutte le istanze; così il fallback da file è uguale per tutti.
+
+   Per l’approve usa il valore `marketplace_contract_address` restituito da `GET /api/config` (dopo aver allineato le istanze come sopra).
+
+3. **Chiamate in ordine** (stesso flusso della demo: mint → approve → list → buy).
+
+| Step | Azione        | API | Body (esempio) |
+|------|----------------|-----|----------------|
+| 1    | **Mint**       | `POST /api/tickets/mint` | `{"recipient":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","count":1}` |
+| 2    | **Approve**    | `POST /api/transfers/nft/approve` | `{"owner_address":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","approved_address":"<MARKETPLACE_CONTRACT_ADDRESS>","token_id":<TOKEN_ID>,"wait_for_receipt":true}` |
+| 3    | **List**       | `POST /api/marketplace/list` | `{"seller_address":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","token_id":<TOKEN_ID>,"price_wei":"1000000000000000000","wait_for_receipt":true}` |
+| 4    | **Buy**        | `POST /api/marketplace/buy` | `{"buyer_address":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","token_id":<TOKEN_ID>,"value_wei":"1000000000000000000","wait_for_receipt":true}` |
+
+**Nota sui campi:**  
+- **`recipient`** (mint): è l’indirizzo che **riceve** i token appena mintati, cioè ne diventa **proprietario**. Nell’esempio è Node1 (`0x70997970...79C8`, test account [1]): i token finiscono a lui, che poi li mette in vendita (list) e li cede al compratore (Node2) con buy.  
+- **`<TOKEN_ID>`**: è l’ID restituito dal mint (es. `9001` se è il primo token mintato dopo i precedenti).  
+- **`1000000000000000000`** wei = 1 ETH (come nella demo).
+
+**Esempio completo con curl** (sostituisci `MARKETPLACE_ADDRESS` e `TOKEN_ID`):
+
+```bash
+# 1) Mint 1 token a Node1
+curl -s -X POST http://localhost:8000/api/tickets/mint \
+  -H "Content-Type: application/json" \
+  -d '{"recipient":"0x70997970C51812dc3A010C7d01b50e0d17dc79C8","count":1}'
+# Dalla risposta prendi minted_token_ids[0] come TOKEN_ID
+
+# 2) Node1 approva il marketplace per quel token
+curl -s -X POST http://localhost:8000/api/transfers/nft/approve \
+  -H "Content-Type: application/json" \
+  -d "{\"owner_address\":\"0x70997970C51812dc3A010C7d01b50e0d17dc79C8\",\"approved_address\":\"MARKETPLACE_ADDRESS\",\"token_id\":TOKEN_ID,\"wait_for_receipt\":true}"
+
+# 3) Node1 mette in vendita a 1 ETH
+curl -s -X POST http://localhost:8000/api/marketplace/list \
+  -H "Content-Type: application/json" \
+  -d "{\"seller_address\":\"0x70997970C51812dc3A010C7d01b50e0d17dc79C8\",\"token_id\":TOKEN_ID,\"price_wei\":\"1000000000000000000\",\"wait_for_receipt\":true}"
+
+# 4) Node2 compra
+curl -s -X POST http://localhost:8000/api/marketplace/buy \
+  -H "Content-Type: application/json" \
+  -d "{\"buyer_address\":\"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC\",\"token_id\":TOKEN_ID,\"value_wei\":\"1000000000000000000\",\"wait_for_receipt\":true}"
+```
+
+Risultato atteso: come in terminale (token mintato a Node1, listato a 1 ETH, acquistato da Node2; nuovo owner = Node2, listing non più attiva). Per verificare: `GET /api/tickets/user/0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` e `GET /api/events/sold?from_block=0`.
+
+Riferimento completo API: [backend-api/README.md](backend-api/README.md).
 
 ---
 
