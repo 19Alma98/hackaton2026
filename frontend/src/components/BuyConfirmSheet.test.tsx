@@ -33,7 +33,7 @@ describe('BuyConfirmSheet', () => {
         onCancel={vi.fn()}
       />
     )
-    expect(screen.getByText(/1\.0 ETH/)).toBeInTheDocument()
+    expect(screen.getByText(/1 ETH/)).toBeInTheDocument()
   })
 
   it('mostra il seller troncato', () => {

@@ -11,10 +11,11 @@ export function shortAddress(address: string): string {
 /**
  * Converte wei (stringa) in ETH leggibile: "1.0 ETH"
  */
-export function formatEth(weiValue: string): string {
+export function formatEth(weiValue: string, decimals = 4): string {
   try {
     const eth = formatEther(BigInt(weiValue))
-    return `${eth} ETH`
+    const rounded = parseFloat(eth).toFixed(decimals).replace(/\.?0+$/, '')
+    return `${rounded} ETH`
   } catch {
     return '0 ETH'
   }

@@ -147,7 +147,7 @@ describe('DashboardPage', () => {
   it('mostra WalletPanel con i dati del wallet', () => {
     renderAuthenticated()
     expect(screen.getByText(/Identità Blockchain/i)).toBeInTheDocument()
-    expect(screen.getByText(/2\.0 ETH/)).toBeInTheDocument()
+    expect(screen.getByText(/2 ETH/)).toBeInTheDocument()
   })
 
   it('mostra MarketplaceGrid con i listings', () => {

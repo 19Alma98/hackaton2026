@@ -23,11 +23,11 @@ describe('shortAddress', () => {
 
 describe('formatEth', () => {
   it('converte 1 ETH correttamente', () => {
-    expect(formatEth('1000000000000000000')).toBe('1.0 ETH')
+    expect(formatEth('1000000000000000000')).toBe('1 ETH')
   })
 
   it('gestisce 0 wei', () => {
-    expect(formatEth('0')).toBe('0.0 ETH')
+    expect(formatEth('0')).toBe('0 ETH')
   })
 
   it('gestisce 0.5 ETH', () => {

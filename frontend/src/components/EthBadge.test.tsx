@@ -5,7 +5,7 @@ import { EthBadge } from './EthBadge'
 describe('EthBadge', () => {
   it('mostra il valore ETH formattato', () => {
     render(<EthBadge weiValue="1000000000000000000" />)
-    expect(screen.getByText(/1\.0 ETH/)).toBeInTheDocument()
+    expect(screen.getByText(/1 ETH/)).toBeInTheDocument()
   })
 
   it('converte correttamente wei in ETH', () => {

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import type { ListingInfo } from '@/types/api'
 import { shortAddress, formatEth } from '@/utils/format'
 
@@ -8,10 +9,17 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onBuy, isMine }: ListingCardProps) {
+  const navigate = useNavigate()
+
   return (
     <div className="glass-card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-white font-bold font-mono text-lg">#{listing.token_id}</span>
+        <button
+          onClick={() => navigate('/token/' + listing.token_id)}
+          className="text-white font-bold font-mono text-lg hover:text-violet-300 transition-colors"
+        >
+          #{listing.token_id}
+        </button>
         <span className="text-violet-400 font-mono font-semibold">{formatEth(listing.price_wei)}</span>
       </div>
       <p className="text-slate-400 text-sm">

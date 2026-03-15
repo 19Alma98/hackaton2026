@@ -39,7 +39,7 @@ describe('WalletPanel', () => {
 
   it('mostra il balance ETH', () => {
     render(<WalletPanel wallet={mockWallet} onTokenClick={vi.fn()} onSell={vi.fn()} onLogout={vi.fn()} />)
-    expect(screen.getByText(/2\.0 ETH/)).toBeInTheDocument()
+    expect(screen.getByText(/2 ETH/)).toBeInTheDocument()
   })
 
   it('mostra TicketCard per ogni token', () => {

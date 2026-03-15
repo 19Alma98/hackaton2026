@@ -46,6 +46,17 @@ export function SelectIdentityPage() {
 				<p className="text-slate-400 text-sm">La tua identità è la tua chiave blockchain</p>
 			</div>
 
+
+			<div className="w-full max-w-2xl mb-4 flex justify-end">
+				<button
+					onClick={() => navigate('/history')}
+					className="flex items-center gap-2 text-sm text-slate-400 hover:text-violet-300 transition-colors"
+				>
+					<span className="text-violet-400">↔</span>
+					Storico vendite blockchain
+				</button>
+			</div>
+
 			{/* Health check card */}
 			<div className="w-full max-w-2xl mb-6">
 				<div className="glass-card p-6">
