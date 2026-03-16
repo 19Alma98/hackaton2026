@@ -12,7 +12,7 @@ REST API che legge dalla blockchain privata (Geth / Clique) e serve dati al fron
 
 ```bash
 # 1. Installa le dipendenze (dalla root del progetto)
-uv add fastapi "uvicorn[standard]" web3 pydantic-settings python-dotenv
+uv add fastapi "uvicorn[standard]" web3 pydantic-settings python-dotenv py-solc-x requests
 
 # 2. Copia e configura il file .env
 cp backend-api/.env.example backend-api/.env

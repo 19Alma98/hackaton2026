@@ -1,11 +1,22 @@
 @import "tailwindcss";
 
-/* Transizione fade tra pagine */
-.page-fade {
-  animation: pageFadeIn 0.2s ease-out;
+/* === Base reset === */
+body {
+  background-color: #050508;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* === Glassmorphism utility — multi-property, difficile da esprimere solo con classi === */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
 }
+
+/* === Glow effects === */
+.glow-success { box-shadow: 0 0 40px rgba(16, 185, 129, 0.4); }
+.glow-pending { box-shadow: 0 0 40px rgba(139, 92, 246, 0.4); }
+.glow-error   { box-shadow: 0 0 40px rgba(244, 63, 94, 0.4); }
